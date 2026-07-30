@@ -208,9 +208,6 @@ KiSwapContextResume(
 {
     PKIPCR Pcr = (PKIPCR)KeGetPcr();
     PKPROCESS OldProcess, NewProcess;
-#ifdef _M_AMD64
-    PEPROCESS ENewProcess;
-#endif
 
     /* Setup ring 0 stack pointer */
     Pcr->TssBase->Rsp0 = (ULONG64)NewThread->InitialStack;
