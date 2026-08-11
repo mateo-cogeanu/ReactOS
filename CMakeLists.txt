@@ -191,6 +191,7 @@ else()
 
     if (SYSWOW64_BUILD)
         add_definitions(-DBUILD_WOW6432)
+        add_definitions(-DUSE_LPC6432)
     endif()
 
     # We don't need CMake importlib handling.
