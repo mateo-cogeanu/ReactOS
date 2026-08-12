@@ -2307,9 +2307,8 @@ ProcessIdToSessionId(IN DWORD dwProcessId,
     return FALSE;
 }
 
-
-#define AddToHandle(x,y)       ((x) = (HANDLE)((ULONG_PTR)(x) | (y)))
-#define RemoveFromHandle(x,y)  ((x) = (HANDLE)((ULONG_PTR)(x) & ~(y)))
+#define AddToHandle(x,y)       (*((ULONG_PTR*)&(x)) = ((ULONG_PTR)(x) | (y)))
+#define RemoveFromHandle(x,y)  (*((ULONG_PTR*)&(x)) = ((ULONG_PTR)(x) & ~(y)))
 C_ASSERT(PROCESS_PRIORITY_CLASS_REALTIME == (PROCESS_PRIORITY_CLASS_HIGH + 1));
 
 /*
@@ -4397,7 +4396,7 @@ StartScan:
          * (basesrv in particular) to know whether or not this is a GUI or a
          * TUI application.
          */
-        AddToHandle(FROM_LPC_HANDLE(CreateProcessMsg->ProcessHandle), 2);
+        AddToHandle(CreateProcessMsg->ProcessHandle, 2);
 
         /* Also check if the parent is also a GUI process */
         NtHeaders = RtlImageNtHeader(GetModuleHandle(NULL));
@@ -4405,7 +4404,7 @@ StartScan:
             (NtHeaders->OptionalHeader.Subsystem == IMAGE_SUBSYSTEM_WINDOWS_GUI))
         {
             /* Let it know that it should display the hourglass mouse cursor */
-            AddToHandle(FROM_LPC_HANDLE(CreateProcessMsg->ProcessHandle), 1);
+            AddToHandle(CreateProcessMsg->ProcessHandle, 1);
         }
     }
 
@@ -4413,11 +4412,11 @@ StartScan:
      * Likewise, the opposite holds as well, and no-feedback has precedence. */
     if (StartupInfo.dwFlags & STARTF_FORCEONFEEDBACK)
     {
-        AddToHandle(FROM_LPC_HANDLE(CreateProcessMsg->ProcessHandle), 1);
+        AddToHandle(CreateProcessMsg->ProcessHandle, 1);
     }
     if (StartupInfo.dwFlags & STARTF_FORCEOFFFEEDBACK)
     {
-        RemoveFromHandle(FROM_LPC_HANDLE(CreateProcessMsg->ProcessHandle), 1);
+        RemoveFromHandle(CreateProcessMsg->ProcessHandle, 1);
     }
 
     /* Also store which kind of VDM app (if any) this is */
