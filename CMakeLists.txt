@@ -380,11 +380,16 @@ Enable this if the module uses typeid or dynamic_cast. You will probably need to
     endif()
 
     #begin with boot so reactos_cab target is defined before all other modules
-    add_subdirectory(boot)
+
+    if(NOT SYSWOW64_BUILD)
+        add_subdirectory(boot)
+    endif()
     add_subdirectory(base)
     add_subdirectory(dll)
-    add_subdirectory(drivers)
-    add_subdirectory(hal)
+    if(NOT SYSWOW64_BUILD)
+        add_subdirectory(drivers)
+        add_subdirectory(hal)
+    endif()
     add_subdirectory(sdk/lib)
     add_subdirectory(media)
     add_subdirectory(modules)
@@ -393,11 +398,13 @@ Enable this if the module uses typeid or dynamic_cast. You will probably need to
     add_subdirectory(sdk/tools/wpp)
     add_subdirectory(win32ss)
 
-    # Create the registry hives
-    create_registry_hives()
+    if (NOT SYSWOW64_BUILD)
+        # Create the registry hives
+        create_registry_hives()
 
-    # Create {bootcd, bootcdregtest, livecd}.lst
-    create_iso_lists()
+        # Create {bootcd, bootcdregtest, livecd}.lst
+        create_iso_lists()
+    endif()
 
     file(MAKE_DIRECTORY ${REACTOS_BINARY_DIR}/sdk/include/reactos)
 

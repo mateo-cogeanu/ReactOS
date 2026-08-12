@@ -332,115 +332,95 @@ macro(dir_to_num dir var)
 endmacro()
 
 function(add_cd_file)
-    cmake_parse_arguments(_CD "NO_CAB;NO_WOW64" "DESTINATION;NAME_ON_CD;TARGET" "FILE;FOR" ${ARGN})
-    if(NOT (_CD_TARGET OR _CD_FILE))
-        message(FATAL_ERROR "You must provide a target or a file to install!")
-    endif()
-
-    if(NOT _CD_DESTINATION)
-        message(FATAL_ERROR "You must provide a destination")
-    elseif(${_CD_DESTINATION} STREQUAL root)
-        set(_CD_DESTINATION "")
-    endif()
-
-    if(NOT _CD_FOR)
-        message(FATAL_ERROR "You must provide a cd name (or \"all\" for all of them) to install the file on!")
-    endif()
-
-    # get file if we need to
-    if(NOT _CD_FILE)
-        set(_CD_FILE "$<TARGET_FILE:${_CD_TARGET}>")
-        if(NOT _CD_NAME_ON_CD)
-            set(_CD_NAME_ON_CD "$<TARGET_FILE_NAME:${_CD_TARGET}>")
+    if (NOT SYSWOW64_BUILD)
+        cmake_parse_arguments(_CD "NO_CAB;NO_WOW64" "DESTINATION;NAME_ON_CD;TARGET" "FILE;FOR" ${ARGN})
+        if(NOT (_CD_TARGET OR _CD_FILE))
+            message(FATAL_ERROR "You must provide a target or a file to install!")
         endif()
-    endif()
 
-    # do we add it to all CDs?
-    list(FIND _CD_FOR "all" __cd)
-    if(NOT __cd EQUAL -1)
-        list(REMOVE_ITEM _CD_FOR "all")
-        list(APPEND _CD_FOR "bootcd;livecd;regtest")
-    endif()
+        if(NOT _CD_DESTINATION)
+            message(FATAL_ERROR "You must provide a destination")
+        elseif(${_CD_DESTINATION} STREQUAL root)
+            set(_CD_DESTINATION "")
+        endif()
 
-    if (BUILD_WOW64_ENABLED AND NOT _CD_NO_WOW64 AND "${_CD_DESTINATION}" MATCHES "^reactos[\\\\/]+system32([\\\\/]+.*|$)")
-        string(REGEX REPLACE "^reactos([\\\\/]+)system32" "reactos\\1SysWOW64" _CD_WOW64_DESTINATION "${_CD_DESTINATION}")
-        string(REGEX REPLACE "^reactos([\\\\/]+|$)" "${ARCH}\\1" _CD_WOW64_ARCH_DESTINATION "${_CD_WOW64_DESTINATION}")
-    else()
-        unset(_CD_WOW64_DESTINATION)
-        unset(_CD_WOW64_ARCH_DESTINATION)
-    endif()
+        if(NOT _CD_FOR)
+            message(FATAL_ERROR "You must provide a cd name (or \"all\" for all of them) to install the file on!")
+        endif()
 
-    # do we add it to bootcd?
-    list(FIND _CD_FOR bootcd __cd)
-    if(NOT __cd EQUAL -1)
-        # whether or not we should put it in reactos.cab or directly on cd
-        if(_CD_NO_CAB)
-            # directly on cd - replace the "reactos/" directory name by the current build architecture name
-            # WARNING: CMake REGEXes are always case-sensitive!
-            string(REGEX REPLACE "^reactos([\\\\/]+|$)" "${ARCH}\\1" _CD_ARCH_DESTINATION "${_CD_DESTINATION}")
-            foreach(item ${_CD_FILE})
-                if(_CD_NAME_ON_CD)
-                    # rename it in the cd tree
-                    set(__file ${_CD_NAME_ON_CD})
-                else()
-                    get_filename_component(__file ${item} NAME)
-                endif()
-                set_property(GLOBAL APPEND PROPERTY BOOTCD_FILE_LIST "${_CD_ARCH_DESTINATION}/${__file}=${item}")
-            endforeach()
-            # manage dependency
-            if(_CD_TARGET)
-                add_dependencies(bootcd ${_CD_TARGET} registry_inf)
+        # get file if we need to
+        if(NOT _CD_FILE)
+            set(_CD_FILE "$<TARGET_FILE:${_CD_TARGET}>")
+            if(NOT _CD_NAME_ON_CD)
+                set(_CD_NAME_ON_CD "$<TARGET_FILE_NAME:${_CD_TARGET}>")
             endif()
+        endif()
+
+        # do we add it to all CDs?
+        list(FIND _CD_FOR "all" __cd)
+        if(NOT __cd EQUAL -1)
+            list(REMOVE_ITEM _CD_FOR "all")
+            list(APPEND _CD_FOR "bootcd;livecd;regtest")
+        endif()
+
+        if (BUILD_WOW64_ENABLED AND NOT _CD_NO_WOW64 AND "${_CD_DESTINATION}" MATCHES "^reactos[\\\\/]+system32([\\\\/]+.*|$)")
+            string(REGEX REPLACE "^reactos([\\\\/]+)system32" "reactos\\1SysWOW64" _CD_WOW64_DESTINATION "${_CD_DESTINATION}")
+            string(REGEX REPLACE "^reactos([\\\\/]+|$)" "${ARCH}\\1" _CD_WOW64_ARCH_DESTINATION "${_CD_WOW64_DESTINATION}")
         else()
-            dir_to_num(${_CD_DESTINATION} _num)
-            foreach(item ${_CD_FILE})
-                # add it in reactos.cab
-                file(APPEND ${REACTOS_BINARY_DIR}/boot/bootdata/packages/reactos.dff.cmake "\"${item}\" ${_num}\n")
-
-                # manage dependency - file level
-                set_property(GLOBAL APPEND PROPERTY REACTOS_CAB_DEPENDS ${item})
-            endforeach()
-
-            # manage dependency - target level
-            if(_CD_TARGET)
-                add_dependencies(reactos_cab_inf ${_CD_TARGET})
-            endif()
+            unset(_CD_WOW64_DESTINATION)
+            unset(_CD_WOW64_ARCH_DESTINATION)
         endif()
 
-        foreach(item ${_CD_FILE})
-            add_wow64_file_cab()
-        endforeach()
-
-    endif() #end bootcd
-
-    # do we add it to livecd?
-    list(FIND _CD_FOR livecd __cd)
-    if(NOT __cd EQUAL -1)
-        # manage dependency
-        if(_CD_TARGET)
-            add_dependencies(livecd ${_CD_TARGET} registry_inf)
-        endif()
-        foreach(item ${_CD_FILE})
-            if(_CD_NAME_ON_CD)
-                # rename it in the cd tree
-                set(__file ${_CD_NAME_ON_CD})
+        # do we add it to bootcd?
+        list(FIND _CD_FOR bootcd __cd)
+        if(NOT __cd EQUAL -1)
+            # whether or not we should put it in reactos.cab or directly on cd
+            if(_CD_NO_CAB)
+                # directly on cd - replace the "reactos/" directory name by the current build architecture name
+                # WARNING: CMake REGEXes are always case-sensitive!
+                string(REGEX REPLACE "^reactos([\\\\/]+|$)" "${ARCH}\\1" _CD_ARCH_DESTINATION "${_CD_DESTINATION}")
+                foreach(item ${_CD_FILE})
+                    if(_CD_NAME_ON_CD)
+                        # rename it in the cd tree
+                        set(__file ${_CD_NAME_ON_CD})
+                    else()
+                        get_filename_component(__file ${item} NAME)
+                    endif()
+                    set_property(GLOBAL APPEND PROPERTY BOOTCD_FILE_LIST "${_CD_ARCH_DESTINATION}/${__file}=${item}")
+                endforeach()
+                # manage dependency
+                if(_CD_TARGET)
+                    add_dependencies(bootcd ${_CD_TARGET} registry_inf)
+                endif()
             else()
-                get_filename_component(__file ${item} NAME)
+                dir_to_num(${_CD_DESTINATION} _num)
+                foreach(item ${_CD_FILE})
+                    # add it in reactos.cab
+                    file(APPEND ${REACTOS_BINARY_DIR}/boot/bootdata/packages/reactos.dff.cmake "\"${item}\" ${_num}\n")
+
+                    # manage dependency - file level
+                    set_property(GLOBAL APPEND PROPERTY REACTOS_CAB_DEPENDS ${item})
+                endforeach()
+
+                # manage dependency - target level
+                if(_CD_TARGET)
+                    add_dependencies(reactos_cab_inf ${_CD_TARGET})
+                endif()
             endif()
-            set_property(GLOBAL APPEND PROPERTY LIVECD_FILE_LIST "${_CD_DESTINATION}/${__file}=${item}")
 
-            add_wow64_file_nocab("${_CD_WOW64_DESTINATION}" LIVECD_FILE_LIST)
-        endforeach()
-    endif() #end livecd
+            foreach(item ${_CD_FILE})
+                add_wow64_file_cab()
+            endforeach()
 
-    # do we add it to regtest?
-    list(FIND _CD_FOR regtest __cd)
-    if(NOT __cd EQUAL -1)
-        # whether or not we should put it in reactos.cab or directly on cd
-        if(_CD_NO_CAB)
-            # directly on cd - replace the "reactos/" directory name by the current build architecture name
-            # WARNING: CMake REGEXes are always case-sensitive!
-            string(REGEX REPLACE "^reactos([\\\\/]+|$)" "${ARCH}\\1" _CD_ARCH_DESTINATION "${_CD_DESTINATION}")
+        endif() #end bootcd
+
+        # do we add it to livecd?
+        list(FIND _CD_FOR livecd __cd)
+        if(NOT __cd EQUAL -1)
+            # manage dependency
+            if(_CD_TARGET)
+                add_dependencies(livecd ${_CD_TARGET} registry_inf)
+            endif()
             foreach(item ${_CD_FILE})
                 if(_CD_NAME_ON_CD)
                     # rename it in the cd tree
@@ -448,24 +428,46 @@ function(add_cd_file)
                 else()
                     get_filename_component(__file ${item} NAME)
                 endif()
-                set_property(GLOBAL APPEND PROPERTY BOOTCDREGTEST_FILE_LIST "${_CD_ARCH_DESTINATION}/${__file}=${item}")
+                set_property(GLOBAL APPEND PROPERTY LIVECD_FILE_LIST "${_CD_DESTINATION}/${__file}=${item}")
 
-                add_wow64_file_nocab("${_CD_WOW64_DESTINATION}" BOOTCDREGTEST_FILE_LIST)
+                add_wow64_file_nocab("${_CD_WOW64_DESTINATION}" LIVECD_FILE_LIST)
             endforeach()
-            # manage dependency
-            if(_CD_TARGET)
-                add_dependencies(bootcdregtest ${_CD_TARGET} registry_inf)
+        endif() #end livecd
+
+        # do we add it to regtest?
+        list(FIND _CD_FOR regtest __cd)
+        if(NOT __cd EQUAL -1)
+            # whether or not we should put it in reactos.cab or directly on cd
+            if(_CD_NO_CAB)
+                # directly on cd - replace the "reactos/" directory name by the current build architecture name
+                # WARNING: CMake REGEXes are always case-sensitive!
+                string(REGEX REPLACE "^reactos([\\\\/]+|$)" "${ARCH}\\1" _CD_ARCH_DESTINATION "${_CD_DESTINATION}")
+                foreach(item ${_CD_FILE})
+                    if(_CD_NAME_ON_CD)
+                        # rename it in the cd tree
+                        set(__file ${_CD_NAME_ON_CD})
+                    else()
+                        get_filename_component(__file ${item} NAME)
+                    endif()
+                    set_property(GLOBAL APPEND PROPERTY BOOTCDREGTEST_FILE_LIST "${_CD_ARCH_DESTINATION}/${__file}=${item}")
+
+                    add_wow64_file_nocab("${_CD_WOW64_DESTINATION}" BOOTCDREGTEST_FILE_LIST)
+                endforeach()
+                # manage dependency
+                if(_CD_TARGET)
+                    add_dependencies(bootcdregtest ${_CD_TARGET} registry_inf)
+                endif()
+            else()
+                #add it in reactos.cab
+                #dir_to_num(${_CD_DESTINATION} _num)
+                #file(APPEND ${REACTOS_BINARY_DIR}/boot/bootdata/packages/reactos.dff.dyn "${_CD_FILE} ${_num}\n")
+                #if(_CD_TARGET)
+                #    #manage dependency
+                #    add_dependencies(reactos_cab ${_CD_TARGET})
+                #endif()
             endif()
-        else()
-            #add it in reactos.cab
-            #dir_to_num(${_CD_DESTINATION} _num)
-            #file(APPEND ${REACTOS_BINARY_DIR}/boot/bootdata/packages/reactos.dff.dyn "${_CD_FILE} ${_num}\n")
-            #if(_CD_TARGET)
-            #    #manage dependency
-            #    add_dependencies(reactos_cab ${_CD_TARGET})
-            #endif()
-        endif()
-    endif() #end bootcd
+        endif() #end bootcd
+    endif() #end not SYSWOW64_BUILD
 endfunction()
 
 function(create_iso_lists)
