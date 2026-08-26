@@ -23,6 +23,7 @@
 #include <debug.h>
 DBG_DEFAULT_CHANNEL(HWDETECT);
 
+#ifndef UEFIBOOT
 static
 PPCI_IRQ_ROUTING_TABLE
 GetPciIrqRoutingTable(VOID)
@@ -72,6 +73,7 @@ GetPciIrqRoutingTable(VOID)
 
     return NULL;
 }
+#endif
 
 ULONG
 PciReadConfigDword(
@@ -172,6 +174,7 @@ PcFindPciBios(PPCI_REGISTRY_INFO BusData)
 }
 #endif
 
+#ifndef UEFIBOOT
 static
 VOID
 DetectPciIrqRoutingTable(PCONFIGURATION_COMPONENT_DATA BusKey)
@@ -228,6 +231,7 @@ DetectPciIrqRoutingTable(PCONFIGURATION_COMPONENT_DATA BusKey)
                                &TableKey);
     }
 }
+#endif
 
 VOID
 DetectPciBios(
@@ -274,7 +278,9 @@ DetectPciBios(
     /* Increment bus number */
     (*BusNumber)++;
 
+#ifndef UEFIBOOT
     DetectPciIrqRoutingTable(BiosKey);
+#endif
 
     /* Report PCI buses */
     for (i = 0; i < (ULONG)BusData.NoBuses; i++)
