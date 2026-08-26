@@ -276,13 +276,17 @@ AtaCtrlPciMapBar(
         !(Controller->AccessRange[Index].Flags & RANGE_IS_MAPPED))
     {
         PHYSICAL_ADDRESS PhysicalAddress;
-
-        Controller->AccessRange[Index].Flags |= RANGE_IS_MAPPED;
+        PVOID MappedBase;
 
         PhysicalAddress.QuadPart = (ULONG_PTR)Controller->AccessRange[Index].IoBase;
-        Controller->AccessRange[Index].IoBase = MmMapIoSpace(PhysicalAddress,
-                                                             Controller->AccessRange[Index].Length,
-                                                             MmNonCached);
+        MappedBase = MmMapIoSpace(PhysicalAddress,
+                                  Controller->AccessRange[Index].Length,
+                                  MmNonCached);
+        if (!MappedBase)
+            return NULL;
+
+        Controller->AccessRange[Index].IoBase = MappedBase;
+        Controller->AccessRange[Index].Flags |= RANGE_IS_MAPPED;
     }
 
     return Controller->AccessRange[Index].IoBase;
@@ -401,7 +405,16 @@ AtaCtrlPciAssignResources(
             Controller->AccessRange[Bar].Length = Desc->u.Memory.Length;
         }
 
-        ++Bar;
+        /* A 64-bit memory BAR consumes the following BAR slot as its high dword. */
+        if (!(CurrBar & PCI_ADDRESS_IO_SPACE) &&
+            ((CurrBar & PCI_ADDRESS_MEMORY_TYPE_MASK) == PCI_TYPE_64BIT))
+        {
+            Bar += 2;
+        }
+        else
+        {
+            ++Bar;
+        }
     }
 }
 

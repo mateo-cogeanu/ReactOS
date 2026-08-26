@@ -296,14 +296,18 @@ AtaAhciHbaRequestOsOwnership(
     PAGED_CODE();
 
     Control = AHCI_HBA_READ(IoBase, HbaBiosHandoffControl);
-    if (Control & AHCI_BOHC_OS_SEMAPHORE)
-        return;
+    if (!(Control & AHCI_BOHC_OS_SEMAPHORE))
+    {
+        INFO("HBA ownership change\n");
+        AHCI_HBA_WRITE(IoBase,
+                       HbaBiosHandoffControl,
+                       Control | AHCI_BOHC_OS_SEMAPHORE);
+    }
 
-    INFO("HBA ownership change\n");
-
-    AHCI_HBA_WRITE(IoBase, HbaBiosHandoffControl, Control | AHCI_BOHC_OS_SEMAPHORE);
-
-    /* Wait up to 2 seconds */
+    /*
+     * OOS may already be set after a warm boot while the BIOS is still busy.
+     * Always wait for both firmware-owned bits to clear before resetting the HBA.
+     */
     for (i = 0; i < 200000; ++i)
     {
         Control = AHCI_HBA_READ(IoBase, HbaBiosHandoffControl);

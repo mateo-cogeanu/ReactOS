@@ -640,6 +640,55 @@ static const DEVVTBL UefiDiskVtbl =
     UefiDiskSeek,
 };
 
+static
+BOOLEAN
+UefiIsParentDevicePath(
+    _In_ EFI_HANDLE ParentHandle,
+    _In_ EFI_HANDLE ChildHandle)
+{
+    EFI_GUID DevicePathGuid = EFI_DEVICE_PATH_PROTOCOL_GUID;
+    EFI_DEVICE_PATH_PROTOCOL *ParentPath;
+    EFI_DEVICE_PATH_PROTOCOL *ChildPath;
+    EFI_STATUS Status;
+    UINTN ParentLength, ChildLength;
+
+    Status = GlobalSystemTable->BootServices->HandleProtocol(
+        ParentHandle,
+        &DevicePathGuid,
+        (VOID**)&ParentPath);
+    if (EFI_ERROR(Status) || ParentPath == NULL)
+        return FALSE;
+
+    Status = GlobalSystemTable->BootServices->HandleProtocol(
+        ChildHandle,
+        &DevicePathGuid,
+        (VOID**)&ChildPath);
+    if (EFI_ERROR(Status) || ChildPath == NULL)
+        return FALSE;
+
+    for (;;)
+    {
+        if (IsDevicePathEndType(ParentPath))
+            return TRUE;
+
+        if (IsDevicePathEndType(ChildPath))
+            return FALSE;
+
+        ParentLength = DevicePathNodeLength(ParentPath);
+        ChildLength = DevicePathNodeLength(ChildPath);
+        if ((ParentLength < sizeof(*ParentPath)) ||
+            (ChildLength < sizeof(*ChildPath)) ||
+            (ParentLength != ChildLength) ||
+            !RtlEqualMemory(ParentPath, ChildPath, ParentLength))
+        {
+            return FALSE;
+        }
+
+        ParentPath = NextDevicePathNode(ParentPath);
+        ChildPath = NextDevicePathNode(ChildPath);
+    }
+}
+
 static VOID
 GetHarddiskInformation(
     _In_ UCHAR DriveNumber)
@@ -713,7 +762,7 @@ UefiSetupBlockDevices(VOID)
     EFI_BLOCK_IO* BlockIo;
 
     PcBiosDiskCount = 0;
-    UefiBootRootIndex = 0;
+    UefiBootRootIndex = MAXULONG;
 
     /* Step 1: Get the size needed for handles buffer - no matter how it fails we're good */
     Status = GlobalSystemTable->BootServices->LocateHandle(
@@ -774,7 +823,6 @@ UefiSetupBlockDevices(VOID)
     RtlZeroMemory(InternalUefiDisk, sizeof(INTERNAL_UEFI_DISK) * SystemHandleCount);
 
     /* Step 5: Find boot handle and determine if it's a root device or partition */
-    UefiBootRootIndex = 0;
     for (i = 0; i < SystemHandleCount; i++)
     {
         if (handles[i] == PublicBootHandle)
@@ -899,49 +947,18 @@ UefiSetupBlockDevices(VOID)
                 BlockIo->Media->BlockSize,
                 BlockIo->Media->RemovableMedia ? "TRUE" : "FALSE");
 
-            /* Find the root device that matches the boot partition's characteristics */
-            /* For CD-ROMs: match BlockSize=2048 and RemovableMedia=TRUE */
-            /* For hard disks: match BlockSize and find the root device before this partition */
+            /* Match the partition handle to its parent using the device-path prefix. */
             BOOLEAN FoundBootDevice = FALSE;
             for (i = 0; i < BlockDeviceIndex; i++)
             {
-                EFI_BLOCK_IO* RootBlockIo;
-                Status = GlobalSystemTable->BootServices->HandleProtocol(
-                    InternalUefiDisk[i].Handle,
-                    &BlockIoGuid,
-                    (VOID**)&RootBlockIo);
-
-                if (EFI_ERROR(Status) || RootBlockIo == NULL)
-                    continue;
-
-                /* For CD-ROM: match BlockSize=2048 and RemovableMedia */
-                if (BlockIo->Media->BlockSize == 2048 && BlockIo->Media->RemovableMedia)
+                if (UefiIsParentDevicePath(InternalUefiDisk[i].Handle,
+                                           handles[UefiBootRootIndex]))
                 {
-                    if (RootBlockIo->Media->BlockSize == 2048 && 
-                        RootBlockIo->Media->RemovableMedia &&
-                        !RootBlockIo->Media->LogicalPartition)
-                    {
-                        PublicBootArcDisk = i;
-                        InternalUefiDisk[i].IsThisTheBootDrive = TRUE;
-                        FoundBootDevice = TRUE;
-                        TRACE("Found CD-ROM boot device at ARC drive index %lu\n", i);
-                        break;
-                    }
-                }
-                /* For hard disk partitions: the root device should be before the partition handle */
-                else if (InternalUefiDisk[i].UefiHandleIndex < UefiBootRootIndex)
-                {
-                    /* Check if this root device is likely the parent */
-                    if (RootBlockIo->Media->BlockSize == BlockIo->Media->BlockSize &&
-                        !RootBlockIo->Media->LogicalPartition)
-                    {
-                        /* This might be the parent, but we need to be more certain */
-                        /* For now, use the last root device before the boot handle */
-                        PublicBootArcDisk = i;
-                        InternalUefiDisk[i].IsThisTheBootDrive = TRUE;
-                        FoundBootDevice = TRUE;
-                        TRACE("Found potential hard disk boot device at ARC drive index %lu\n", i);
-                    }
+                    PublicBootArcDisk = i;
+                    InternalUefiDisk[i].IsThisTheBootDrive = TRUE;
+                    FoundBootDevice = TRUE;
+                    TRACE("Found boot device parent at ARC drive index %lu\n", i);
+                    break;
                 }
             }
 
@@ -1070,7 +1087,8 @@ UefiInitializeBootDevices(VOID)
     EFI_STATUS Status;
     ULONG ArcDriveIndex;
 
-    DiskReadBufferSize = EFI_PAGE_SIZE;
+    /* Keep one complete maximum-sized logical block in the bounce buffer. */
+    DiskReadBufferSize = max(EFI_PAGE_SIZE, MAX_SUPPORTED_BLOCK_SIZE);
     DiskReadBuffer = NULL;
     DiskReadBufferRaw = NULL;
     DiskReadBufferAlignment = 1;

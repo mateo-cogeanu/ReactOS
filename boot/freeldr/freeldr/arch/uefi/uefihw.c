@@ -74,20 +74,28 @@ PRSDP_DESCRIPTOR
 FindAcpiBios(VOID)
 {
     UINTN i;
-    RSDP_DESCRIPTOR* rsdp = NULL;
+    PRSDP_DESCRIPTOR Acpi1Rsdp = NULL;
     EFI_GUID acpi2_guid = EFI_ACPI_20_TABLE_GUID;
+    EFI_GUID acpi1_guid = ACPI_10_TABLE_GUID;
 
     for (i = 0; i < GlobalSystemTable->NumberOfTableEntries; i++)
     {
         if (!memcmp(&GlobalSystemTable->ConfigurationTable[i].VendorGuid,
                     &acpi2_guid, sizeof(acpi2_guid)))
         {
-            rsdp = (RSDP_DESCRIPTOR*)GlobalSystemTable->ConfigurationTable[i].VendorTable;
-            break;
+            /* ACPI 2.0+ takes precedence when both GUIDs are installed. */
+            return (PRSDP_DESCRIPTOR)GlobalSystemTable->ConfigurationTable[i].VendorTable;
+        }
+
+        if (!memcmp(&GlobalSystemTable->ConfigurationTable[i].VendorGuid,
+                    &acpi1_guid, sizeof(acpi1_guid)))
+        {
+            Acpi1Rsdp = (PRSDP_DESCRIPTOR)GlobalSystemTable->ConfigurationTable[i].VendorTable;
         }
     }
 
-    return rsdp;
+    /* EFI 1.x firmware is allowed to publish only the ACPI 1.0 GUID. */
+    return Acpi1Rsdp;
 }
 
 PDESCRIPTION_HEADER
@@ -182,7 +190,7 @@ DetectAcpiBios(PCONFIGURATION_COMPONENT_DATA SystemKey, ULONG *BusNumber)
         /* Fill the table */
         AcpiBiosData = (PACPI_BIOS_DATA)(PartialDescriptor + 1);
 
-        if (Rsdp->revision > 0)
+        if ((Rsdp->revision > 0) && (Rsdp->xsdt_physical_address != 0))
         {
             TRACE("ACPI >1.0, using XSDT address\n");
             AcpiBiosData->RSDTAddress.QuadPart = Rsdp->xsdt_physical_address;
@@ -366,7 +374,10 @@ UefiFindPciBios(
         {
             BusData->MajorRevision = 3;
             BusData->MinorRevision = 0;
-            BusData->NoBuses = HighestMcfgBus + 1;
+            /* PCI_REGISTRY_INFO cannot represent 256; never wrap it to zero. */
+            BusData->NoBuses = (HighestMcfgBus == MAXUCHAR)
+                                 ? MAXUCHAR
+                                 : HighestMcfgBus + 1;
             BusData->HardwareMechanism = 1;
 
             TRACE("UEFI PCI: %u bus(es) found via MCFG\n", BusData->NoBuses);
@@ -427,7 +438,8 @@ UefiFindPciBios(
 
     BusData->MajorRevision = 3;
     BusData->MinorRevision = 0;
-    BusData->NoBuses = HighestBus + 1;
+    /* PCI_REGISTRY_INFO cannot represent 256; never wrap it to zero. */
+    BusData->NoBuses = (HighestBus == MAXUCHAR) ? MAXUCHAR : HighestBus + 1;
     BusData->HardwareMechanism = 1;
 
     TRACE("UEFI PCI probe: %u bus(es) found\n", BusData->NoBuses);
