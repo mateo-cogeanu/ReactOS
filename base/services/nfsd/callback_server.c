@@ -509,9 +509,9 @@ out:
 }
 
 #ifdef __REACTOS__
-int nfs41_handle_callback(void *rpc_clnt, void *cb, void * dummy)
+int nfs41_handle_callback(void *rpc_clnt, void *cb, void **dummy)
 {
-    struct cb_compound_res **reply = dummy;
+    struct cb_compound_res **reply = (struct cb_compound_res **)dummy;
 #else
 int nfs41_handle_callback(void *rpc_clnt, void *cb, struct cb_compound_res **reply)
 {
