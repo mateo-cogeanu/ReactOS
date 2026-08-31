@@ -920,6 +920,44 @@ InstallBootloaderFiles(
 
 static
 NTSTATUS
+InstallEfiBootloaderFiles(
+    _In_ PCUNICODE_STRING SystemRootPath,
+    _In_ PCUNICODE_STRING SourceRootPath,
+    _In_ PCUNICODE_STRING DestinationArcPath)
+{
+    NTSTATUS Status;
+    WCHAR SrcPath[MAX_PATH];
+    WCHAR DstPath[MAX_PATH];
+
+    /* Keep the common FreeLoader files and configuration in the volume root. */
+    Status = InstallBootloaderFiles(SystemRootPath, SourceRootPath);
+    if (!NT_SUCCESS(Status))
+        return Status;
+
+    Status = CreateFreeLoaderIniForReactOS(SystemRootPath->Buffer,
+                                            DestinationArcPath->Buffer);
+    if (!NT_SUCCESS(Status))
+        return Status;
+
+    /* Install the standard x64 removable-media fallback path. Firmware can
+     * boot this without a vendor-specific NVRAM entry. */
+    CombinePaths(DstPath, ARRAYSIZE(DstPath), 2,
+                 SystemRootPath->Buffer, L"EFI\\BOOT");
+    Status = SetupCreateDirectory(DstPath);
+    if (!NT_SUCCESS(Status))
+        return Status;
+
+    CombinePaths(SrcPath, ARRAYSIZE(SrcPath), 2,
+                 SourceRootPath->Buffer, L"efi\\boot\\bootx64.efi");
+    CombinePaths(DstPath, ARRAYSIZE(DstPath), 2,
+                 SystemRootPath->Buffer, L"EFI\\BOOT\\BOOTX64.EFI");
+
+    DPRINT1("Install UEFI loader: %S ==> %S\n", SrcPath, DstPath);
+    return SetupCopyFile(SrcPath, DstPath, FALSE);
+}
+
+static
+NTSTATUS
 InstallFatBootcodeToPartition(
     _In_ PCUNICODE_STRING SystemRootPath,
     _In_ PCUNICODE_STRING SourceRootPath,
@@ -1496,7 +1534,19 @@ InstallBootManagerAndBootEntriesWorker(
     BOOLEAN IsBIOS = ((ArchType == ARCH_PcAT) || (ArchType == ARCH_NEC98x86));
     UCHAR InstallType = (Options & 0x03);
 
-    // FIXME: We currently only support BIOS-based PCs
+    if (ArchType == ARCH_Efi)
+    {
+        if ((_wcsicmp(FileSystem, L"FAT") != 0) &&
+            (_wcsicmp(FileSystem, L"FAT32") != 0))
+        {
+            return STATUS_NOT_SUPPORTED;
+        }
+
+        return InstallEfiBootloaderFiles(SystemRootPath,
+                                         SourceRootPath,
+                                         DestinationArcPath);
+    }
+
     // TODO: Support other platforms
     if (!IsBIOS)
         return STATUS_NOT_SUPPORTED;

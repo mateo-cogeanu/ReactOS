@@ -870,6 +870,7 @@ PUBLIC KiSystemCallEntry64
 GLOBAL_LABEL KiSystemCall64Again
 
     /* Call the C-handler (will enable interrupts) */
+    lea rcx, [rsp + MAX_SYSCALL_PARAM_SIZE]
     call KiSystemCallHandler
 
     /* The return value from KiSystemCallHandler is the address of the Nt-function */

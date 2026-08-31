@@ -1068,12 +1068,12 @@ FdoHandleDeviceRelations(
         // now fill the DeviceRelations structure
         TRACE("Reporting %u partitions\n", FdoExtension->EnumeratedPartitionsTotal);
 
+        SIZE_T relationsSize =
+            FIELD_OFFSET(DEVICE_RELATIONS, Objects) +
+            sizeof(PDEVICE_OBJECT) * (SIZE_T)FdoExtension->EnumeratedPartitionsTotal;
+
         PDEVICE_RELATIONS deviceRelations =
-            ExAllocatePoolWithTag(PagedPool,
-                                  sizeof(DEVICE_RELATIONS)
-                                  + sizeof(PDEVICE_OBJECT)
-                                  * (FdoExtension->EnumeratedPartitionsTotal - 1),
-                                  TAG_PARTMGR);
+            ExAllocatePoolWithTag(PagedPool, relationsSize, TAG_PARTMGR);
 
         if (!deviceRelations)
         {

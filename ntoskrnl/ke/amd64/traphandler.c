@@ -135,17 +135,13 @@ NtSyscallFailure(void)
 
 PVOID
 KiSystemCallHandler(
-    VOID)
+    _In_ PKTRAP_FRAME TrapFrame)
 {
-    PKTRAP_FRAME TrapFrame;
     PKSERVICE_TABLE_DESCRIPTOR DescriptorTable;
     PKTHREAD Thread;
     PULONG64 KernelParams, UserParams;
     ULONG ServiceNumber, TableIndex, Count;
     ULONG64 UserRsp;
-
-    /* Get a pointer to the trap frame */
-    TrapFrame = (PKTRAP_FRAME)((PULONG64)_AddressOfReturnAddress() + 1 + MAX_SYSCALL_PARAMS);
 
     /* Increase system call count */
     __addgsdword(FIELD_OFFSET(KIPCR, Prcb.KeSystemCalls), 1);
@@ -277,4 +273,3 @@ KiSystemService(IN PKTHREAD Thread,
     UNIMPLEMENTED;
     __debugbreak();
 }
-

@@ -905,7 +905,16 @@ InitDestinationPaths(
 
     if (DiskEntry->MediaType == FixedMedia)
     {
-        if (DiskEntry->BiosFound)
+        if (pSetupData->ArchType == ARCH_Efi)
+        {
+            /* uefildr exposes fixed disks through its MULTI ARC namespace.
+             * The installation disk is disk zero in the AMD64 UEFI setup. */
+            Status = RtlStringCchPrintfW(PathBuffer, ARRAYSIZE(PathBuffer),
+                             L"multi(0)disk(0)rdisk(0)partition(%lu)\\",
+                             PartEntry->OnDiskPartitionNumber);
+            DPRINT1("UEFI fixed disk, using MULTI ARC path '%S'\n", PathBuffer);
+        }
+        else if (DiskEntry->BiosFound)
         {
 #if 1
             Status = RtlStringCchPrintfW(PathBuffer, ARRAYSIZE(PathBuffer),
@@ -1094,6 +1103,10 @@ InitializeSetup(
 #if defined(SARCH_XBOX)
     pSetupData->ArchType = ARCH_Xbox;
 // #elif defined(SARCH_PC98)
+#elif defined(_M_AMD64)
+    /* The AMD64 build is booted by uefildr and installs its EFI fallback
+     * loader instead of legacy x86 MBR/VBR boot code. */
+    pSetupData->ArchType = ARCH_Efi;
 #else // TODO: Arc, UEFI
     pSetupData->ArchType = (IsNEC_98 ? ARCH_NEC98x86 : ARCH_PcAT);
 #endif
