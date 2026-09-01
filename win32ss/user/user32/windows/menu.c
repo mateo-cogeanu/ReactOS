@@ -195,7 +195,7 @@ static BOOL GetMenuItemInfo_common ( HMENU hmenu,
 	lpmii->hbmpItem = WOW64_CAST_TO_HANDLE(pItem->hbmp); /* not on Win9x/ME */
         if( lpmii->fType & MFT_BITMAP)
         {
-	    lpmii->dwTypeData = (LPWSTR) pItem->hbmp;
+	    lpmii->dwTypeData = (LPWSTR)WOW64_CAST_TO_PTR(pItem->hbmp);
 	    lpmii->cch = 0;
         }
         else if( lpmii->fType & (MFT_OWNERDRAW | MFT_SEPARATOR))
@@ -1773,4 +1773,3 @@ ChangeMenuA(
             return InsertMenuA(hMenu, cmd, flags, cmdInsert, lpszNewItem);
     };
 }
-
