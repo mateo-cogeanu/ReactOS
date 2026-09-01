@@ -1,130 +1,168 @@
-<p align=center>
-  <a href="https://reactos.org/">
-    <img alt="ReactOS" src="https://reactos.org/wiki/images/0/02/ReactOS_logo.png">
-  </a>
-</p>
+# ReactOS AMD64 — UEFI, AHCI/SATA, WoW64, and modern shell icons
 
----
+> [!IMPORTANT]
+> This is an **experimental community development fork** of ReactOS. It is not
+> an official ReactOS release, it is not supported by the ReactOS Project, and
+> it is not ready for production use. Test it in a virtual machine or on a
+> computer containing no valuable data.
 
-<p align=center>
-  <a href="https://reactos.org/project-news/reactos-0416-released/">
-    <img alt="ReactOS 0.4.16 Release" src="https://img.shields.io/badge/release-0.4.16-0688CB.svg"></a>
-  <a href="https://reactos.org/download/">
-    <img alt="Download ReactOS" src="https://img.shields.io/badge/download-latest-0688CB.svg"></a>
-  <a href="https://sourceforge.net/projects/reactos/">
-    <img alt="SourceForge Download" src="https://img.shields.io/sourceforge/dm/reactos.svg?colorB=0688CB"></a>
-  <a href="https://github.com/reactos/reactos/blob/master/COPYING">
-    <img alt="License" src="https://img.shields.io/badge/license-GNU_GPL_2.0-0688CB.svg"></a>
-  <a href="https://reactos.org/donate/">
-    <img alt="Donate" src="https://img.shields.io/badge/%24-donate-E44E4A.svg"></a>
-  <a href="https://twitter.com/reactos">
-    <img alt="Follow on Twitter" src="https://img.shields.io/twitter/follow/reactos.svg?style=social&label=Follow%20%40reactos"></a>
-</p>
+This branch combines ongoing ReactOS AMD64 work with experimental UEFI boot,
+modern AHCI/SATA compatibility work, an integrated i386 `SysWOW64` payload,
+and original modernized shell icons. Its purpose is to make one reproducible
+AMD64 research image for virtual-machine testing and eventual hardware testing.
 
-## Quick Links
-[Website](https://reactos.org/) &bull;
-[Official chat](https://chat.reactos.org/) &bull;
-[Wiki](https://reactos.org/wiki/) &bull;
-[Forum](https://reactos.org/forum/) &bull;
-[Community Discord](https://discord.gg/7knjvhT) &bull;
-[JIRA Bug Tracker](https://jira.reactos.org/issues/) &bull;
-[ReactOS Git mirror](https://git.reactos.org/) &bull;
-[Testman](https://reactos.org/testman/)
+Current development branch: `codex/amd64-wow64-sync`
 
-## What is ReactOS?
+## Attribution — please read this first
 
-ReactOS™ is an Open Source effort to develop a quality operating system that is compatible with applications and drivers written for the Microsoft® Windows™ NT family of operating systems (NT4, 2000, XP, 2003, Vista, 7).
+**ReactOS exists because of decades of work by the ReactOS Project and its
+contributors. Nearly all of this repository is their work.** This fork is a
+small experimental layer over that enormous upstream codebase; it must never
+be represented as a new operating system written by this fork's maintainer or
+by Codex.
 
-The ReactOS project, although currently focused on Windows Server 2003 compatibility, is always keeping an eye toward compatibility with Windows Vista and future Windows NT releases.
+Primary credit and upstream links:
 
-The code of ReactOS is licensed under [GNU GPL 2.0](https://github.com/reactos/reactos/blob/master/COPYING).
+- [The ReactOS Project](https://reactos.org/) and every past and present
+  ReactOS contributor. The repository's preserved Git history is the most
+  precise per-change attribution record.
+- The historical names collected in [`CREDITS`](CREDITS), plus the many newer
+  contributors visible in `git log` and the
+  [ReactOS GitHub organization](https://github.com/reactos/reactos).
+- [Marcin Jabłoński](https://github.com/TheNNX) for the experimental ReactOS
+  WoW64 implementation and synchronization work that forms the foundation of
+  the 32-on-64 compatibility layer in this branch.
+- [Alex Mendoza](https://github.com/MuerteSeguraZ) for the UEFI FreeLoader PCI
+  enumeration work incorporated into the modern firmware path.
+- The [Wine Project](https://www.winehq.org/) and Wine contributors. ReactOS
+  shares and adapts substantial user-mode compatibility code from Wine, and
+  the experimental WoW64 work also ports/adapts Wine WoW64 components. Source
+  headers and Git commits retain their applicable authorship and licenses.
+- All upstream third-party projects whose code and data are distributed in
+  ReactOS. Their copyright and license files remain beside the corresponding
+  components throughout the tree.
 
-### Product quality warning
+The fork-specific integration commits are recorded in [`CHANGELOG.md`](CHANGELOG.md).
+Copyright remains with the respective authors. No blanket claim of authorship
+is made over upstream ReactOS, Wine, or third-party code.
 
-**ReactOS is currently an Alpha quality operating system.** This means that ReactOS is under heavy development and you have to be ready to encounter some problems. Different things may not work well and it can corrupt the data present on your hard disk. It is HIGHLY recommended to test ReactOS on a virtual machine or on a computer with no sensitive or critical data!
+## What this branch contains
 
-## Building
+- Native AMD64 ReactOS kernel and user-mode system.
+- UEFI boot using an AMD64 `EFI/BOOT/BOOTX64.EFI` loader.
+- UEFI installation support for copying the EFI loader to a FAT system
+  partition.
+- Improved FreeLoader PCI/ACPI enumeration and modern-firmware robustness.
+- Improved PCI IDE/AHCI/SATA discovery and initialization for modern virtual
+  and physical controllers.
+- Experimental WoW64 runtime (`wow64.dll`, `wow64win.dll`, supporting NTDLL and
+  kernel changes).
+- An integrated i386 `SysWOW64` build generated together with the AMD64 image.
+- Original, generated modern shell icons. These are inspired by contemporary
+  interface design but are not extracted from Microsoft Windows.
+- A resource-only VM patching utility for testing icon changes without
+  replacing executable code.
 
-![Build](https://github.com/reactos/reactos/workflows/Build/badge.svg) [![rosbewin.badge]][rosbewin.link] [![rosbeunix.badge]][rosbeunix.link] [![coverity.badge]][coverity.link]
+## Current status
 
-To build the system it is strongly advised to use the _ReactOS Build Environment (RosBE)._
-Up-to-date versions for Windows and for Unix/GNU-Linux are available from our download page at: ["Build Environment"](https://reactos.org/wiki/Build_Environment).
+The combined build completes and produces a bootable ISO. The image has been
+inspected to confirm this architecture split:
 
-Alternatively one can use Microsoft Visual C++ (MSVC) version 2019+. Building with MSVC is covered here: ["Visual Studio or Microsoft Visual C++"](https://reactos.org/wiki/CMake#Visual_Studio_or_Microsoft_Visual_C.2B.2B).
+| Location/component | Architecture |
+| --- | --- |
+| `ntoskrnl.exe` | AMD64 / PE32+ |
+| `System32/ntdll.dll` | AMD64 / PE32+ |
+| `System32/wow64.dll` | AMD64 / PE32+ |
+| `System32/wow64win.dll` | AMD64 / PE32+ |
+| `SysWOW64/ntdll.dll` | i386 / PE32 |
+| `SysWOW64/kernel32.dll` | i386 / PE32 |
+| `SysWOW64/user32.dll` | i386 / PE32 |
+| `SysWOW64/gdi32.dll` | i386 / PE32 |
+| `SysWOW64/cmd.exe` | i386 / PE32 |
+| `EFI/BOOT/BOOTX64.EFI` | AMD64 EFI application |
 
-See ["Building ReactOS"](https://reactos.org/wiki/Building_ReactOS) article for more details.
+The inspected image contains 720 i386 payload entries assigned to SysWOW64.
+UEFI boot and SATA CD/disk detection have been observed under QEMU `q35`.
+First-stage Setup can format the SATA disk, copy the operating system, and
+install `BOOTX64.EFI`.
 
-### Binaries
+### Known blockers
 
-To build ReactOS you must run the `configure` script in the directory you want to have your build files. Choose `configure.cmd` or `configure.sh` depending on your system. Then run `ninja <modulename>` to build a module you want or just `ninja` to build all modules.
+- Runtime execution of a 32-bit application through WoW64 is **not yet proven**.
+- AMD64 LiveCD boot currently terminates Winlogon after loading `kbdus.dll`.
+  An A/B test reproduced the same failure with the earlier non-WoW64 AMD64
+  image, so it is not presently attributed to the SysWOW64 integration.
+- Text-mode Setup's `blue.sys` still assumes legacy VGA text memory. Under
+  pure UEFI/GOP this causes corrupted installer rendering. A framebuffer-backed
+  console fix is in development but is deliberately not committed as complete.
+- ReactOS AMD64, UEFI, AHCI and WoW64 support are all experimental. Hardware
+  compatibility is neither complete nor guaranteed.
 
-### Bootable images
+See [`CHANGELOG.md`](CHANGELOG.md) for the detailed timeline and test evidence.
 
-To build a bootable CD image run `ninja bootcd` from the build directory. This will create a CD image with a filename `bootcd.iso`.
+## Building the experimental AMD64 image
 
-You can always download fresh binary builds of bootable images from the ["Daily builds"](https://reactos.org/getbuilds/) page.
+Use an appropriate ReactOS Build Environment or a compatible cross-toolchain.
+An out-of-tree build is strongly recommended.
 
-## Installing
+```sh
+mkdir reactos-build
+cd reactos-build
+../ReactOS/configure.sh -G Ninja -DARCH=amd64 -DCMAKE_BUILD_TYPE=Debug
+ninja -j4 bootcd
+```
 
-By default, ReactOS currently can only be installed on a machine that has a FAT16 or FAT32 partition as the active (bootable) partition.
-The partition on which ReactOS is to be installed (which may or may not be the bootable partition) must also be formatted as FAT16 or FAT32.
-ReactOS Setup can format the partitions if needed.
+On AMD64 this branch enables the integrated WoW64 payload. The native build
+creates and consumes a subordinate i386 build for SysWOW64; do not separately
+substitute an i386 boot image for the AMD64 output.
 
-Starting with 0.4.10, ReactOS can be installed using the BtrFS file system. But consider this as an experimental feature and thus regressions not triggered on FAT setup may be observed.
+The bootable result is normally `bootcd.iso` in the build directory. Verify the
+architectures of both `System32` and `SysWOW64` before distributing a result.
 
-To install ReactOS from the bootable CD distribution, extract the archive contents. Then burn the CD image, boot from it, and follow the instructions.
+## Suggested VM configuration
 
-See ["Installing ReactOS"](https://reactos.org/wiki/Installing_ReactOS) Wiki page or [INSTALL](INSTALL) for more details.
+- Architecture: emulated `x86_64`/AMD64, not ARM64 virtualization.
+- Firmware: UEFI.
+- Machine/chipset: QEMU `q35` or an equivalent modern PC model.
+- Storage: SATA/AHCI disk and SATA/AHCI CD-ROM.
+- Debugging: COM1 at 115200 baud when using a debug boot entry.
+- Test disk: disposable and free of important data.
 
-## Testing
+On Apple Silicon, UTM must use **Emulate** for this AMD64 guest. Native ARM64
+virtualization cannot execute this x86-64 ReactOS image.
 
-If you discover a bug in ReactOS search on JIRA first - it might be reported already. If not report the bug providing logs and as much information as possible.
+## Modern icon sources
 
-See ["File Bugs"](https://reactos.org/wiki/File_Bugs) for a guide.
+The icon generator and its notes live in
+[`media/graphics/modern_shell_icons`](media/graphics/modern_shell_icons/README.md).
+The artwork is generated from geometric primitives and does not contain icons
+extracted from Windows 10 or Windows 11.
 
-__NOTE:__ The bug tracker is _not_ for discussions. Please use our [official chat](https://chat.reactos.org/) or our [forum](https://reactos.org/forum/).
+## Licensing
 
-## Contributing  [![prwelcome.badge]](https://reactos.org/wiki/Commiting_Changes)
+ReactOS is primarily distributed under the GNU General Public License 2.0.
+See [`COPYING`](COPYING), [`COPYING.LIB`](COPYING.LIB), [`COPYING3`](COPYING3),
+[`COPYING3.LIB`](COPYING3.LIB), file headers, component-local license files,
+and the preserved Git history. Some components use other compatible licenses;
+their notices remain authoritative.
 
-We are always looking for developers! Check [how to contribute](CONTRIBUTING.md) if you are willing to participate.
+ReactOS is a registered trademark of the ReactOS Foundation. Microsoft and
+Windows are trademarks of Microsoft Corporation. This fork is unaffiliated
+with and not endorsed by Microsoft.
 
-__Legal notice__: If you have seen proprietary Microsoft Windows source code (including but not limited to the leaked Windows NT 3.5, NT 4, 2000 source code and the Windows Research Kernel), your contribution won't be accepted because of potential copyright violation.
+## Contributing and clean-room requirements
 
-Try out cloud-based ReactOS development using Gitpod and Docker:
+Follow [`CONTRIBUTING.md`](CONTRIBUTING.md) and the ReactOS clean-room rules.
+Do not contribute code derived from leaked or proprietary Microsoft source.
+When forwarding suitable fixes upstream, retain original authorship and explain
+the test environment and experimental nature of the AMD64 path.
 
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/reactos/reactos)
+## Official ReactOS resources
 
-You can also support ReactOS by [donating](https://reactos.org/donate/)! We rely on our backers to maintain our servers and accelerate development by [hiring full-time devs](https://reactos.org/contributing/#paid-jobs).
-
-## More information
-
-ReactOS is a Free and Open Source operating system based on the Windows architecture,
-providing support for existing applications and drivers, and an alternative to the current dominant consumer operating system.
-
-It is not another wrapper built on Linux, like WINE. It does not attempt or plan to compete with WINE; in fact, the user-mode part of ReactOS is almost entirely WINE-based and our two teams have cooperated closely in the past.
-
-ReactOS is also not "yet another OS". It does not attempt to be a third player like any other alternative OS out there. People are not meant to uninstall Linux and use ReactOS instead; ReactOS is a replacement for Windows users who want a Windows replacement that behaves just like Windows.
-
-More information is available at: [reactos.org](https://reactos.org/).
-
-Also see the [media/doc](/media/doc/) subdirectory for some sparse notes.
-
-## Who is responsible
-
-Active devs are listed as members of [GitHub organization](https://github.com/orgs/reactos/people).
-See also the [CREDITS](CREDITS) file for others.
-
-## Code mirrors
-
-The main development is done on [GitHub](https://github.com/reactos/reactos). We have an [alternative mirror](https://git.reactos.org/?p=reactos.git) in case GitHub is down.
-
-There is also an obsolete [SVN archive repository](https://svn.reactos.org/reactos/) that is kept for historical purposes.
-
-[coverity.badge]:   https://scan.coverity.com/projects/205/badge.svg?flat=1
-[rosbewin.badge]:   https://img.shields.io/badge/RosBE_Windows-2.2.1-0688CB.svg
-[rosbeunix.badge]:  https://img.shields.io/badge/RosBE_Unix-2.2.1-0688CB.svg
-[prwelcome.badge]:  https://img.shields.io/badge/PR-welcome-0688CB.svg
-
-[coverity.link]:    https://scan.coverity.com/projects/205
-[rosbewin.link]:    https://sourceforge.net/projects/reactos/files/RosBE-Windows/i386/2.2.1/
-[rosbeunix.link]:   https://sourceforge.net/projects/reactos/files/RosBE-Unix/2.2.1/
+- [Website](https://reactos.org/)
+- [Official upstream source](https://github.com/reactos/reactos)
+- [Build documentation](https://reactos.org/wiki/Building_ReactOS)
+- [Wiki](https://reactos.org/wiki/)
+- [Issue tracker](https://jira.reactos.org/)
+- [Contributing](https://reactos.org/wiki/Commiting_Changes)
+- [Donate to ReactOS](https://reactos.org/donate/)
