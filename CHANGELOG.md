@@ -10,6 +10,15 @@ For exact attribution and the full upstream history, use `git log`, consult
 [`CREDITS`](CREDITS), and visit the
 [official ReactOS repository](https://github.com/reactos/reactos).
 
+## Unreleased — Repository workflow
+
+- **2026-09-01 18:13:54 CEST** — Added a repository-wide `AGENTS.md` working
+  agreement. It requires every material change to update this changelog,
+  requires coherent verified milestones to be committed and pushed, protects
+  unrelated local work, and mandates preservation of upstream ReactOS history,
+  licensing, and contributor attribution. Documentation-only change; no source
+  code was compiled or boot-tested for this entry.
+
 ## Unreleased — UEFI Setup framebuffer console
 
 - 2026-09-01, after 17:25 CEST — Diagnosed corrupted UEFI text Setup output.
