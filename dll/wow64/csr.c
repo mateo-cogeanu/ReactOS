@@ -103,7 +103,7 @@ wow64_NtWow64CsrCaptureMessageString(UINT* pArgs)
     PSTRING CapturedString = get_ptr(&pArgs);
     
     CsrCaptureMessageString(pBuffer->pNativeBuffer, String, StringLength, MaximumLength, CapturedString);
-    Wow64CsrCapturePtrHelper(pBuffer, &CapturedString->Buffer, StringLength);
+    Wow64CsrCapturePtrHelper(pBuffer, (PVOID *)&CapturedString->Buffer, StringLength);
 }
 
 NTSTATUS 
