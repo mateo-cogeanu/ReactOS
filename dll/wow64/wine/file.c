@@ -46,7 +46,7 @@ AppendIosbStorage(PWOW64_IOSB_STORAGE Current,
     NewBlock->StatusBlock64.Pointer = StatusBlock32;
     NewBlock->Next = NULL;
     
-    while (InterlockedCompareExchangePointer(&Current->Next,
+    while (InterlockedCompareExchangePointer((PVOID volatile *)&Current->Next,
                                              NewBlock, 
                                              NULL) != NULL)
     {

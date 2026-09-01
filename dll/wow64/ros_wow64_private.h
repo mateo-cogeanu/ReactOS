@@ -131,7 +131,7 @@ CallOrJump32(ULONG Address, ULONG nArgc, PULONG Args, BOOL bJump)
     
     if (!bJump)
     {
-        enter->FarReturn32 = PtrToUlong(FarReturn32);
+        enter->FarReturn32 = PtrToUlong((const void *)FarReturn32);
     }
     
     for (int i = 0; i < nArgc + bJump; i++)
