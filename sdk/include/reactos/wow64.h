@@ -192,15 +192,15 @@ Wow64ReadNative(UINT64 NativeAddress, PVOID Address, SIZE_T Size)
 }
 
 #define WOW64_READ_PTR_FIELD(Ptr, StructType, Field) \
-    Wow64ReadNativePtr((UINT64)(Ptr) + (ULONG_PTR)&((StructType*)0)->Field)
+    Wow64ReadNativePtr((UINT64)(ULONG_PTR)(Ptr) + (ULONG_PTR)&((StructType*)0)->Field)
 #define WOW64_WRITE_PTR_FIELD(Ptr, StructType, Field, Value) \
-    Wow64WriteNativePtr((UINT64)(Ptr) + (ULONG_PTR)&((StructType*)0)->Field, Value)
+    Wow64WriteNativePtr((UINT64)(ULONG_PTR)(Ptr) + (ULONG_PTR)&((StructType*)0)->Field, Value)
 #define WOW64_READ_ULONG_FIELD(Ptr, StructType, Field) \
-    Wow64ReadNativeULong((UINT64)(Ptr) + (ULONG_PTR)&((StructType*)0)->Field)
+    Wow64ReadNativeULong((UINT64)(ULONG_PTR)(Ptr) + (ULONG_PTR)&((StructType*)0)->Field)
 #define WOW64_WRITE_ULONG_FIELD(Ptr, StructType, Field, Value) \
-    Wow64WriteNativeULong((UINT64)(Ptr) + (ULONG_PTR)&((StructType*)0)->Field, Value)
+    Wow64WriteNativeULong((UINT64)(ULONG_PTR)(Ptr) + (ULONG_PTR)&((StructType*)0)->Field, Value)
 #define WOW64_READ_WORD_FIELD(Ptr, StructType, Field) \
-    Wow64ReadNativeWord((UINT64)(Ptr) + (ULONG_PTR)&((StructType*)0)->Field)
+    Wow64ReadNativeWord((UINT64)(ULONG_PTR)(Ptr) + (ULONG_PTR)&((StructType*)0)->Field)
 #define WOW64_READ_BYTE_FIELD(Ptr, StructType, Field) ((BYTE)(WOW64_READ_WORD_FIELD(Ptr, StructType, Field) & 0xFF))
     
 #define WOW64_READ_HANDLE_FIELD(Ptr, StructType, Field) ((HANDLE)WOW64_READ_ULONG_FIELD(Ptr, StructType, Field))
