@@ -22,7 +22,6 @@
 
 HANDLE ProcessHeap;
 SETUPDATA SetupData;
-static BOOLEAN IsUnattendedSetup;
 
 /* The partition where to perform the installation */
 PPARTENTRY InstallPartition = NULL;
@@ -361,7 +360,7 @@ StartDlgProc(
     PSETUPDATA pSetupData;
 
     /* Retrieve pointer to the global setup data */
-    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, GWLP_USERDATA);
+    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, DWLP_USER);
 
     switch (uMsg)
     {
@@ -369,7 +368,7 @@ StartDlgProc(
         {
             /* Save pointer to the global setup data */
             pSetupData = (PSETUPDATA)((LPPROPSHEETPAGEW)lParam)->lParam;
-            SetWindowLongPtrW(hwndDlg, GWLP_USERDATA, (DWORD_PTR)pSetupData);
+            SetWindowLongPtrW(hwndDlg, DWLP_USER, (DWORD_PTR)pSetupData);
 
             /* Set title font */
             SetDlgItemFont(hwndDlg, IDC_STARTTITLE, pSetupData->hTitleFont, TRUE);
@@ -433,7 +432,7 @@ TypeDlgProc(
     PSETUPDATA pSetupData;
 
     /* Retrieve pointer to the global setup data */
-    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, GWLP_USERDATA);
+    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, DWLP_USER);
 
     switch (uMsg)
     {
@@ -441,7 +440,7 @@ TypeDlgProc(
         {
             /* Save pointer to the global setup data */
             pSetupData = (PSETUPDATA)((LPPROPSHEETPAGEW)lParam)->lParam;
-            SetWindowLongPtrW(hwndDlg, GWLP_USERDATA, (DWORD_PTR)pSetupData);
+            SetWindowLongPtrW(hwndDlg, DWLP_USER, (DWORD_PTR)pSetupData);
 
             /* Set the options in bold */
             SetDlgItemFont(hwndDlg, IDC_INSTALL, pSetupData->hBoldFont, TRUE);
@@ -838,7 +837,7 @@ UpgradeRepairDlgProc(
     HIMAGELIST hSmall;
 
     /* Retrieve pointer to the global setup data */
-    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, GWLP_USERDATA);
+    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, DWLP_USER);
 
     switch (uMsg)
     {
@@ -846,7 +845,7 @@ UpgradeRepairDlgProc(
         {
             /* Save pointer to the global setup data */
             pSetupData = (PSETUPDATA)((LPPROPSHEETPAGEW)lParam)->lParam;
-            SetWindowLongPtrW(hwndDlg, GWLP_USERDATA, (DWORD_PTR)pSetupData);
+            SetWindowLongPtrW(hwndDlg, DWLP_USER, (DWORD_PTR)pSetupData);
 
             hList = GetDlgItem(hwndDlg, IDC_NTOSLIST);
 
@@ -1037,7 +1036,7 @@ DeviceDlgProc(
     HWND hList;
 
     /* Retrieve pointer to the global setup data */
-    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, GWLP_USERDATA);
+    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, DWLP_USER);
 
     switch (uMsg)
     {
@@ -1045,7 +1044,7 @@ DeviceDlgProc(
         {
             /* Save pointer to the global setup data */
             pSetupData = (PSETUPDATA)((LPPROPSHEETPAGEW)lParam)->lParam;
-            SetWindowLongPtrW(hwndDlg, GWLP_USERDATA, (DWORD_PTR)pSetupData);
+            SetWindowLongPtrW(hwndDlg, DWLP_USER, (DWORD_PTR)pSetupData);
 
             hList = GetDlgItem(hwndDlg, IDC_COMPUTER);
             InitGenericComboList(hList, pSetupData->USetupData.ComputerList, GetSettingDescription);
@@ -1069,8 +1068,25 @@ DeviceDlgProc(
             switch (lpnm->code)
             {
                 case PSN_SETACTIVE:
-                    PropSheet_SetWizButtons(GetParent(hwndDlg), PSWIZB_BACK | PSWIZB_NEXT);
+                {
+                    /* In unattended mode, don't allow going backwards further, i.e.
+                     * back to the Upgrade/Repair, the Install type, or the Start pages,
+                     * in case the setup is interrupted and the user manually goes back. */
+                    if (pSetupData->bUnattend)
+                        PropSheet_SetWizButtons(GetParent(hwndDlg), PSWIZB_NEXT);
+                    else
+                        PropSheet_SetWizButtons(GetParent(hwndDlg), PSWIZB_BACK | PSWIZB_NEXT);
+
+                    /* In unattended mode, switch directly to the next page.
+                     * TODO: *UNLESS* there are inconsistencies in the data,
+                     * in which case we should stay on the page! */
+                    if (pSetupData->bUnattend)
+                    {
+                        SetWindowLongPtrW(hwndDlg, DWLP_MSGRESULT, -1);
+                        return TRUE;
+                    }
                     break;
+                }
 
                 case PSN_QUERYCANCEL:
                 {
@@ -1141,7 +1157,7 @@ SummaryDlgProc(
     PSETUPDATA pSetupData;
 
     /* Retrieve pointer to the global setup data */
-    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, GWLP_USERDATA);
+    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, DWLP_USER);
 
     switch (uMsg)
     {
@@ -1149,7 +1165,7 @@ SummaryDlgProc(
         {
             /* Save pointer to the global setup data */
             pSetupData = (PSETUPDATA)((LPPROPSHEETPAGEW)lParam)->lParam;
-            SetWindowLongPtrW(hwndDlg, GWLP_USERDATA, (DWORD_PTR)pSetupData);
+            SetWindowLongPtrW(hwndDlg, DWLP_USER, (DWORD_PTR)pSetupData);
             break;
         }
 
@@ -1178,6 +1194,13 @@ SummaryDlgProc(
                     WCHAR CurrentItemText[256];
 
                     ASSERT(InstallPartition);
+
+                    /* Skip the Summary page in unattended setup */
+                    if (pSetupData->bUnattend)
+                    {
+                        SetWindowLongPtrW(hwndDlg, DWLP_MSGRESULT, -1);
+                        return TRUE;
+                    }
 
                     /* Show the current selected settings */
 
@@ -1473,15 +1496,9 @@ FsVolCallback(
     {
         if ((FSVOL_OP)Param1 == FSVOL_FORMAT)
         {
-            /*
-             * In case we just repair an existing installation, or make
-             * an unattended setup without formatting, just go to the
-             * filesystem check step.
-             */
+            /* In case we just repair an existing installation,
+             * just go to the file system check step */
             if (FsVolContext->pSetupData->RepairUpdateFlag)
-                return FSVOL_SKIP; /** HACK!! **/
-
-            if (IsUnattendedSetup && !FsVolContext->pSetupData->USetupData.FormatPartition)
                 return FSVOL_SKIP; /** HACK!! **/
 
             /* Set status text */
@@ -1950,7 +1967,7 @@ PrepareAndDoCopyThread(
     WCHAR PathBuffer[RTL_NUMBER_OF_FIELD(PARTENTRY, DeviceName) + 1];
 
     /* Retrieve pointer to the global setup data */
-    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, GWLP_USERDATA);
+    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, DWLP_USER);
 
     /* Get the progress handle */
     hWndProgress = GetDlgItem(hwndDlg, IDC_PROCESSPROGRESS);
@@ -2299,7 +2316,7 @@ ProcessDlgProc(
     PSETUPDATA pSetupData;
 
     /* Retrieve pointer to the global setup data */
-    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, GWLP_USERDATA);
+    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, DWLP_USER);
 
     switch (uMsg)
     {
@@ -2307,7 +2324,7 @@ ProcessDlgProc(
         {
             /* Save pointer to the global setup data */
             pSetupData = (PSETUPDATA)((LPPROPSHEETPAGEW)lParam)->lParam;
-            SetWindowLongPtrW(hwndDlg, GWLP_USERDATA, (DWORD_PTR)pSetupData);
+            SetWindowLongPtrW(hwndDlg, DWLP_USER, (DWORD_PTR)pSetupData);
 
             /* Reset the status text and set the main label in bold */
             SetDlgItemTextW(hwndDlg, IDC_ACTIVITY, L"");
@@ -2683,7 +2700,7 @@ FinishDlgProc(
     PSETUPDATA pSetupData;
 
     /* Retrieve pointer to the global setup data */
-    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, GWLP_USERDATA);
+    pSetupData = (PSETUPDATA)GetWindowLongPtrW(hwndDlg, DWLP_USER);
 
     switch (uMsg)
     {
@@ -2694,7 +2711,7 @@ FinishDlgProc(
 
             /* Save pointer to the global setup data */
             pSetupData = (PSETUPDATA)ppsp->lParam;
-            SetWindowLongPtrW(hwndDlg, GWLP_USERDATA, (DWORD_PTR)pSetupData);
+            SetWindowLongPtrW(hwndDlg, DWLP_USER, (DWORD_PTR)pSetupData);
 
             /* Set the stop-install flag if the user is aborting
              * the installation: TRUE if Abort, FALSE if Finish. */
@@ -2808,6 +2825,19 @@ FinishDlgProc(
                                       pSetupData->hInstance,
                                       IDS_RESTARTBTN);
 
+                    /* Skip the Finish page in unattended setup */
+                    if (pSetupData->bUnattend /*&& !pSetupData->bStopInstall*/)
+                    {
+                        // FIXME: The macro should use PostMessageW, but our
+                        // prsht.h is wrong and uses SendMessageW instead...
+                        //PropSheet_PressButton(hWndParent, PSBTN_FINISH);
+                        PostMessageW(hWndParent, PSM_PRESSBUTTON, PSBTN_FINISH, 0);
+                        /* We need to "stay" on the page so that we can
+                         * receive the PSN_WIZFINISH notification */
+                        SetWindowLongPtrW(hwndDlg, DWLP_MSGRESULT, 0);
+                        return TRUE;
+                    }
+
                     /* Re-enable the Close/Cancel buttons if we won't reboot */
                     if (!pSetupData->bMustReboot)
                         PropSheet_SetCloseCancel(hWndParent, TRUE);
@@ -2910,7 +2940,7 @@ BOOL LoadSetupData(
 
     /* If not unattended, overwrite language and locale with
      * the current ones of the running ReactOS instance */
-    if (!IsUnattendedSetup)
+    if (!pSetupData->bUnattend)
     {
         LCID LocaleID = GetUserDefaultLCID();
 
@@ -2934,7 +2964,7 @@ BOOL LoadSetupData(
 
     /* If not unattended, overwrite keyboard layout with
      * the current one of the running ReactOS instance */
-    if (!IsUnattendedSetup)
+    if (!pSetupData->bUnattend)
     {
         C_ASSERT(_countof(pSetupData->DefaultKBLayout) >= KL_NAMELENGTH);
         /* If the call fails, keep the default already stored in the buffer */
@@ -3599,6 +3629,13 @@ static const struct
     DLGPROC pfnDlgProc;
 } WizardPages[] =
 {
+    /*
+     * These pages are useful only in the interactive installation scenario.
+     * In ReactOS unattended setup, we directly perform a new installation,
+     * possibly erasing any old one, but no upgrades.
+     * NOTE: This may be subject to changes in the future.
+     */
+
     /* Start page */
     {FALSE, PSP_HIDEHEADER,
      MAKEINTRESOURCEW(IDD_STARTPAGE), NULL, NULL, StartDlgProc},
@@ -3615,20 +3652,24 @@ static const struct
      MAKEINTRESOURCEW(IDS_UPDATETITLE), MAKEINTRESOURCEW(IDS_UPDATESUBTITLE),
      UpgradeRepairDlgProc},
 
+    /*
+     * These pages are common to both interactive and unattended setup scenarios.
+     */
+
     /* Device Settings page */
-    {FALSE, PSP_USEHEADERTITLE | PSP_USEHEADERSUBTITLE,
+    {TRUE, PSP_USEHEADERTITLE | PSP_USEHEADERSUBTITLE,
      MAKEINTRESOURCEW(IDD_DEVICEPAGE),
      MAKEINTRESOURCEW(IDS_DEVICETITLE), MAKEINTRESOURCEW(IDS_DEVICESUBTITLE),
      DeviceDlgProc},
 
     /* Install device settings page / boot method / install directory */
-    {FALSE, PSP_USEHEADERTITLE | PSP_USEHEADERSUBTITLE,
+    {TRUE, PSP_USEHEADERTITLE | PSP_USEHEADERSUBTITLE,
      MAKEINTRESOURCEW(IDD_DRIVEPAGE),
      MAKEINTRESOURCEW(IDS_DRIVETITLE), MAKEINTRESOURCEW(IDS_DRIVESUBTITLE),
      DriveDlgProc},
 
     /* Summary page */
-    {FALSE, PSP_USEHEADERTITLE | PSP_USEHEADERSUBTITLE,
+    {TRUE, PSP_USEHEADERTITLE | PSP_USEHEADERSUBTITLE,
      MAKEINTRESOURCEW(IDD_SUMMARYPAGE),
      MAKEINTRESOURCEW(IDS_SUMMARYTITLE), MAKEINTRESOURCEW(IDS_SUMMARYSUBTITLE),
      SummaryDlgProc},
@@ -3650,6 +3691,69 @@ static const struct
      FinishDlgProc}, // Same dialog procedure as the Finish page.
 };
 
+/**
+ * @brief
+ * Ensure only one ReactOS Setup instance is running.
+ * If another instance already exists, find and activate its window.
+ *
+ * @return
+ * A handle to the instance mutex if this is the first instance,
+ * or NULL if another running instance already exists.
+ **/
+static HANDLE
+CheckForOtherInstance(
+    _In_ HINSTANCE hInstance)
+{
+#define REACTOS_SETUP_MUTEX L"__ReactOS_Setup__"
+
+    static HANDLE s_hMutex = NULL;
+
+    /* If we are already running an instance, just return it */
+    if (s_hMutex)
+        return s_hMutex;
+
+    /* Try to create or open the mutex. Use the Global namespace
+     * if it exists; otherwise fall back to the default one. */
+    s_hMutex = CreateMutexW(NULL, FALSE, L"Global\\" REACTOS_SETUP_MUTEX);
+    if (!s_hMutex && (GetLastError() == ERROR_PATH_NOT_FOUND))
+        s_hMutex = CreateMutexW(NULL, FALSE, REACTOS_SETUP_MUTEX);
+    if (!s_hMutex)
+        return NULL; /* Failed to create the mutex */
+
+    if (GetLastError() == ERROR_ALREADY_EXISTS)
+    {
+        /* The mutex was created by another instance */
+        WCHAR szCaption[128];
+        PWSTR Title = szCaption; // Use the static buffer by default.
+        HWND hWnd = NULL;
+
+        /* Find and activate its window */
+        (void)LoadAllocStringW(hInstance, IDS_CAPTION, &Title, _countof(szCaption));
+        if (Title)
+        {
+            /* Locate the window (PropertySheetW uses the dialog class)
+             * and retrieve the last popup it may have open */
+            HWND hWndMain = FindWindowW(L"#32770", Title);
+            hWnd = GetLastActivePopup(hWndMain);
+            if (!hWnd) hWnd = hWndMain;
+
+            if (Title != szCaption)
+                HeapFree(GetProcessHeap(), 0, Title);
+        }
+        if (hWnd)
+        {
+            ShowWindow(hWnd, SW_SHOWNA);
+            SwitchToThisWindow(hWnd, TRUE);
+        }
+
+        CloseHandle(s_hMutex);
+        return NULL;
+    }
+
+    /* We are the first instance */
+    return s_hMutex;
+}
+
 int WINAPI
 _tWinMain(HINSTANCE hInst,
           HINSTANCE hPrevInstance,
@@ -3657,12 +3761,16 @@ _tWinMain(HINSTANCE hInst,
           int nCmdShow)
 {
     ULONG Error;
-    HANDLE hHotkeyThread;
+    DWORD dwHotkeyThreadId = 0;
     INITCOMMONCONTROLSEX iccx;
     PROPSHEETHEADERW psh = {0};
     PROPSHEETPAGEW psp = {0};
     HPROPSHEETPAGE ahpsp[_countof(WizardPages)];
     UINT nPages, i;
+
+    /* Ensure only one instance is running */
+    if (!CheckForOtherInstance(hInst))
+        return 0;
 
     ProcessHeap = GetProcessHeap();
 
@@ -3693,13 +3801,14 @@ _tWinMain(HINSTANCE hInst,
     }
 
     /* Retrieve any supplemental options from the unattend file */
-    SetupData.bUnattend = IsUnattendedSetup = CheckUnattendedSetup(&SetupData.USetupData);
+    SetupData.bUnattend = CheckUnattendedSetup(&SetupData.USetupData);
 
     /* Load extra setup data (HW lists etc...) */
     if (!LoadSetupData(&SetupData))
         goto Quit;
 
-    hHotkeyThread = CreateThread(NULL, 0, HotkeyThread, NULL, 0, NULL);
+    /* Start the hotkey thread */
+    CloseHandle(CreateThread(NULL, 0, HotkeyThread, NULL, 0, &dwHotkeyThreadId));
 
     /* Whenever any of the common controls are used in your app,
      * you must call InitCommonControlsEx() to register the classes
@@ -3768,11 +3877,9 @@ _tWinMain(HINSTANCE hInst,
     // UnregisterTreeListClass(hInst);
     TreeListUnregister(hInst);
 
-    if (hHotkeyThread)
-    {
-        PostThreadMessageW(GetThreadId(hHotkeyThread), WM_QUIT, 0, 0);
-        CloseHandle(hHotkeyThread);
-    }
+    /* Stop the hotkey thread */
+    if (dwHotkeyThreadId)
+        PostThreadMessageW(dwHotkeyThreadId, WM_QUIT, 0, 0);
 
 Quit:
     /* Setup has finished */

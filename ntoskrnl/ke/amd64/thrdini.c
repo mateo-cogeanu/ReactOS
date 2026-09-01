@@ -208,6 +208,7 @@ KiSwapContextResume(
 {
     PKIPCR Pcr = (PKIPCR)KeGetPcr();
     PKPROCESS OldProcess, NewProcess;
+    ULONG64 CurrentCycleTime, ElapsedCycles;
 
     /* Setup ring 0 stack pointer */
     Pcr->TssBase->Rsp0 = (ULONG64)NewThread->InitialStack;
@@ -237,6 +238,13 @@ KiSwapContextResume(
         //Pcr->TssBase->IoMapBase = NewProcess->IopmOffset;
     }
 
+    /* Update the old thread's cycle time */
+    CurrentCycleTime = __rdtsc();
+    ElapsedCycles = CurrentCycleTime - Pcr->Prcb.StartCycles;
+    ((PETHREAD)OldThread)->CycleTime += ElapsedCycles;
+    InterlockedAdd64((PLONG64)&((PEPROCESS)OldProcess)->CycleTime, ElapsedCycles);
+    Pcr->Prcb.StartCycles = CurrentCycleTime;
+
     /* Set TEB pointer and GS base */
     Pcr->NtTib.Self = (PVOID)NewThread->Teb;
     if (NewThread->Teb)
@@ -246,7 +254,7 @@ KiSwapContextResume(
 
 #if defined(_WIN64) && defined(BUILD_WOW64_ENABLED)
        PEPROCESS ENewProcess = (PEPROCESS)NewProcess;
-       
+
        if (ENewProcess->Wow64Process != NULL)
        {
           ULONG_PTR Base = (ULONG_PTR)PS_GET_TEB32_FROM_TEB(NewThread->Teb);

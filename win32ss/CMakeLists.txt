@@ -133,6 +133,7 @@ if(NOT SYSWOW64_BUILD)
         user/ntuser/hook.c
         user/ntuser/hotkey.c
         user/ntuser/input.c
+        user/ntuser/job.c
         user/ntuser/ime.c
         user/ntuser/keyboard.c
         user/ntuser/kbdlayout.c
@@ -270,3 +271,4 @@ add_asm_files(win32ksys_asm sys-stubs.S)
 add_library(win32ksys ${win32ksys_asm})
 set_target_properties(win32ksys PROPERTIES LINKER_LANGUAGE "C")
 add_dependencies(win32ksys asm)
+
