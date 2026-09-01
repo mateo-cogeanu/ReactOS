@@ -2118,8 +2118,8 @@ NTSTATUS WINAPI wow64_NtGdiGetTextExtentExW( UINT *args )
     const WCHAR *str = get_ptr( &args );
     INT count = get_ulong( &args );
     INT max_ext = get_ulong( &args );
-    INT *nfit = get_ptr( &args );
-    INT *dxs = get_ptr( &args );
+    ULONG *nfit = get_ptr( &args );
+    ULONG *dxs = get_ptr( &args );
     SIZE *size = get_ptr( &args );
     UINT flags = get_ulong( &args );
 
@@ -2185,7 +2185,7 @@ NTSTATUS WINAPI wow64_NtGdiIcmBrushInfo( UINT *args )
     BITMAPINFO *info = get_ptr( &args );
     void *bits = get_ptr( &args );
     ULONG *bits_size = get_ptr( &args );
-    UINT *usage = get_ptr( &args );
+    DWORD *usage = get_ptr( &args );
     BOOL *unk = get_ptr( &args );
     UINT mode = get_ulong( &args );
 
@@ -2930,7 +2930,7 @@ NTSTATUS WINAPI wow64___wine_get_file_outline_text_metric( UINT *args )
     
 HANDLE
 WINAPI
-wow64_NtGdiGetStockObject(ULONG* pArgs)
+wow64_NtGdiGetStockObject(UINT* pArgs)
 {
     INT Type = get_ulong(&pArgs);
     
