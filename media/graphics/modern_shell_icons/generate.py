@@ -2,6 +2,7 @@
 """Generate the original ReactOS Fluent shell icon set."""
 
 from pathlib import Path
+import math
 
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -27,14 +28,14 @@ def draw_layer(im):
     return layer, ImageDraw.Draw(layer)
 
 
-def shadow(im, box, radius=22, offset=(0, 10), alpha=65):
+def shadow(im, box, radius=22, offset=(0, 7), alpha=42):
     layer = canvas()
     d = ImageDraw.Draw(layer)
     x0, y0, x1, y1 = box
     ox, oy = offset
     d.rounded_rectangle(q((x0 + ox, y0 + oy, x1 + ox, y1 + oy)),
                         radius=radius * S, fill=(25, 43, 68, alpha))
-    layer = layer.filter(ImageFilter.GaussianBlur(9 * S))
+    layer = layer.filter(ImageFilter.GaussianBlur(7 * S))
     im.alpha_composite(layer)
 
 
@@ -159,18 +160,22 @@ def icon_computer():
 
 def icon_network():
     im = canvas()
-    shadow(im, (35, 42, 221, 219), radius=25)
+    shadow(im, (38, 35, 218, 220), radius=25)
     d = ImageDraw.Draw(im)
-    d.ellipse(q((49, 39, 207, 197)), fill=(37, 160, 218, 255),
-              outline=(17, 91, 164, 255), width=4 * S)
-    d.ellipse(q((91, 39, 165, 197)), outline=(212, 245, 255, 230), width=5 * S)
-    d.line(q((53, 93, 203, 93)), fill=(212, 245, 255, 230), width=5 * S)
-    d.line(q((53, 145, 203, 145)), fill=(212, 245, 255, 230), width=5 * S)
-    d.line(q((128, 44, 128, 191)), fill=(212, 245, 255, 230), width=5 * S)
-    for x, y, c in ((47, 188, (92, 77, 218, 255)), (171, 191, (36, 201, 141, 255)),
-                    (109, 210, (255, 167, 38, 255))):
-        d.line(q((x + 17, y - 7, 126, 159)), fill=(57, 73, 92, 255), width=5 * S)
-        d.rounded_rectangle(q((x, y, x + 39, y + 32)), radius=9 * S, fill=c)
+    d.ellipse(q((42, 32, 204, 194)), fill=(34, 166, 222, 255),
+              outline=(24, 105, 180, 255), width=4 * S)
+    grid = (221, 247, 255, 235)
+    d.ellipse(q((84, 32, 162, 194)), outline=grid, width=5 * S)
+    d.line(q((47, 85, 199, 85)), fill=grid, width=5 * S)
+    d.line(q((47, 140, 199, 140)), fill=grid, width=5 * S)
+    d.line(q((123, 37, 123, 189)), fill=grid, width=5 * S)
+    # A single, clean connected-computer badge stays legible at 16 px.
+    d.rounded_rectangle(q((132, 142, 224, 211)), radius=15 * S,
+                        fill=(248, 252, 255, 255), outline=(57, 86, 121, 255), width=4 * S)
+    d.rounded_rectangle(q((142, 152, 214, 190)), radius=8 * S,
+                        fill=(79, 103, 220, 255))
+    d.line(q((178, 191, 178, 202)), fill=(57, 86, 121, 255), width=5 * S)
+    d.line(q((158, 202, 198, 202)), fill=(57, 86, 121, 255), width=5 * S)
     return im
 
 
@@ -178,20 +183,28 @@ def icon_settings(folder=False):
     im = folder_base(False) if folder else canvas()
     if not folder:
         shadow(im, (35, 35, 221, 221), radius=45)
-    d = ImageDraw.Draw(im)
     center = (153, 151) if folder else (128, 128)
     cx, cy = center
-    outer = 67 if folder else 82
-    color = (103, 83, 214, 255)
-    for angle in range(0, 360, 45):
-        import math
-        a = math.radians(angle)
-        x, y = cx + int(math.cos(a) * outer * .72), cy + int(math.sin(a) * outer * .72)
-        d.rounded_rectangle(q((x - 17, y - 28, x + 17, y + 28)), radius=8 * S,
-                            fill=color)
-    d.ellipse(q((cx - outer + 15, cy - outer + 15, cx + outer - 15, cy + outer - 15)), fill=color)
-    d.ellipse(q((cx - 29, cy - 29, cx + 29, cy + 29)), fill=(225, 231, 255, 255))
-    d.ellipse(q((cx - 15, cy - 15, cx + 15, cy + 15)), fill=(116, 98, 220, 255))
+    outer = 64 if folder else 79
+    inner = outer * .79
+    points = []
+    # Alternating radii make actual radial gear teeth instead of upright blocks.
+    for i in range(32):
+        a = math.radians(-90 + i * 11.25)
+        tooth_phase = i % 4
+        r = outer if tooth_phase in (0, 1) else inner
+        points.append((int((cx + math.cos(a) * r) * S),
+                       int((cy + math.sin(a) * r) * S)))
+    gear = canvas()
+    gd = ImageDraw.Draw(gear)
+    gd.polygon(points, fill=(103, 83, 214, 255))
+    gd.ellipse(q((cx - outer * .69, cy - outer * .69,
+                  cx + outer * .69, cy + outer * .69)), fill=(111, 91, 221, 255))
+    im.alpha_composite(gear)
+    d = ImageDraw.Draw(im)
+    d.ellipse(q((cx - 30, cy - 30, cx + 30, cy + 30)),
+              fill=(236, 239, 255, 255), outline=(83, 67, 184, 255), width=3 * S)
+    d.ellipse(q((cx - 14, cy - 14, cx + 14, cy + 14)), fill=(94, 77, 205, 255))
     return im
 
 
@@ -200,9 +213,9 @@ def icon_recycle(full=False):
     shadow(im, (48, 50, 208, 226), radius=22)
     d = ImageDraw.Draw(im)
     if full:
-        for box, color in (((75, 69, 108, 102), (255, 189, 46, 255)),
-                           ((117, 58, 154, 99), (72, 190, 139, 255)),
-                           ((153, 73, 185, 105), (81, 142, 229, 255))):
+        for box, color in (((73, 51, 108, 86), (255, 189, 46, 255)),
+                           ((115, 40, 154, 84), (72, 190, 139, 255)),
+                           ((153, 54, 188, 89), (81, 142, 229, 255))):
             d.rounded_rectangle(q(box), radius=5 * S, fill=color)
     d.rounded_rectangle(q((52, 71, 204, 94)), radius=10 * S,
                         fill=(111, 143, 169, 255))
@@ -212,11 +225,14 @@ def icon_recycle(full=False):
               fill=(222, 239, 247, 245), outline=(92, 134, 164, 255))
     for x in (94, 128, 162):
         d.line(q((x, 113, x - 5, 198)), fill=(128, 166, 188, 255), width=5 * S)
-    # Three-arrow recycle mark.
-    green = (41, 179, 116, 255)
-    d.line(q((105, 145, 126, 116, 146, 146, 135, 146)), fill=green, width=8 * S, joint="curve")
-    d.line(q((153, 151, 170, 180, 133, 180, 140, 169)), fill=green, width=8 * S, joint="curve")
-    d.line(q((124, 181, 88, 181, 105, 151, 111, 163)), fill=green, width=8 * S, joint="curve")
+    # Balanced three-arrow loop, drawn with explicit arrowheads for crisp downsizing.
+    green = (37, 177, 115, 255)
+    d.line(q((101, 166, 124, 129)), fill=green, width=9 * S)
+    d.polygon(q((126, 117, 111, 139, 133, 137)), fill=green)
+    d.line(q((132, 133, 157, 171)), fill=green, width=9 * S)
+    d.polygon(q((164, 181, 155, 154, 143, 173)), fill=green)
+    d.line(q((148, 185, 103, 185)), fill=green, width=9 * S)
+    d.polygon(q((91, 185, 112, 171, 112, 199)), fill=green)
     return im
 
 
@@ -275,12 +291,20 @@ def icon_power():
 
 
 def icon_browser():
-    im = icon_network()
+    im = canvas()
+    shadow(im, (35, 35, 221, 221), radius=50)
     d = ImageDraw.Draw(im)
-    d.rounded_rectangle(q((139, 151, 220, 218)), radius=20 * S,
-                        fill=(245, 252, 255, 250), outline=(29, 126, 218, 255), width=4 * S)
-    d.line(q((159, 185, 177, 201, 204, 169)), fill=(26, 165, 119, 255),
-           width=9 * S, joint="curve")
+    d.ellipse(q((38, 35, 218, 215)), fill=(41, 174, 226, 255),
+              outline=(25, 111, 190, 255), width=4 * S)
+    grid = (221, 249, 255, 230)
+    d.ellipse(q((87, 35, 169, 215)), outline=grid, width=5 * S)
+    d.line(q((44, 93, 212, 93)), fill=grid, width=5 * S)
+    d.line(q((44, 151, 212, 151)), fill=grid, width=5 * S)
+    d.line(q((128, 41, 128, 209)), fill=grid, width=5 * S)
+    # Navigation pointer gives the globe an unambiguous browser identity.
+    d.polygon(q((145, 116, 207, 134, 178, 151, 163, 195)),
+              fill=(250, 252, 255, 255), outline=(49, 81, 121, 255))
+    d.polygon(q((159, 131, 190, 139, 175, 148, 168, 170)), fill=(79, 95, 218, 255))
     return im
 
 

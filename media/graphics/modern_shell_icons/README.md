@@ -19,3 +19,15 @@ The generator requires Python 3 and Pillow.
 The script updates the selected high-visibility resources in shell32,
 Explorer, Command Prompt, and Applications Manager, and writes `preview.png`
 beside the generator.
+
+For an offline test installation whose binaries are older than the current
+source tree, `transplant_pe_resources.py` can redirect selected icon resources
+to newly compiled artwork while retaining the installation's existing code,
+imports, dialogs, strings, manifests, and resource directory. It requires the
+Python `pefile` package. Repeat `--group-id` for each numeric icon-group ID:
+
+```text
+python3 media/graphics/modern_shell_icons/transplant_pe_resources.py \
+    installed-explorer.exe newly-built-explorer.exe patched-explorer.exe \
+    --group-id 100 --group-id 101
+```
