@@ -47,13 +47,9 @@ function(setup_wow64)
                 "\"${CMAKE_COMMAND}\" %*"
             )
         else()
-            set(WOW64_CMAKE_COMMAND "${REACTOS_BINARY_DIR}/wow64/cmake_shim.sh")
-            file(WRITE ${WOW64_CMAKE_COMMAND}
-                "#!/bin/bash\n"
-                "source \"$_ROSBE_ROSSCRIPTDIR\"/charch.sh i386\n"
-                "\"${CMAKE_COMMAND}\" \"$@\""
-            )
-            execute_process(COMMAND "chmod" "+x" "${WOW64_CMAKE_COMMAND}")
+            # The cross toolchain selects i686 from ARCH=i386.  Calling CMake
+            # directly also works outside RosBE (including ARM64 build hosts).
+            set(WOW64_CMAKE_COMMAND "${CMAKE_COMMAND}")
         endif()
     endif()
 
@@ -108,7 +104,7 @@ function(setup_wow64)
             -DTOOLS_FOLDER=${REACTOS_BINARY_DIR}/host-tools/bin
             -DTARGET_COMPILER_ID=${CMAKE_C_COMPILER_ID}
             -DTARGET_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-            -DCMAKE_BUILD_TYPE=${WOW64_BUILD_TYPE}
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
             -DSYSWOW64_BUILD=1
             ${CMAKE_WOW64_TOOLS_EXTRA_ARGS}
         BUILD_ALWAYS TRUE
