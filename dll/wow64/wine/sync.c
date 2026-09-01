@@ -1098,11 +1098,7 @@ NTSTATUS WINAPI wow64_NtQueryObject( UINT *args )
 
     case ObjectTypesInformation:   /* OBJECT_TYPES_INFORMATION */
     {
-#ifndef __REACTOS__
         OBJECT_TYPES_INFORMATION *info, *info32 = ptr;
-#else
-        OBJECT_ALL_TYPES_INFORMATION *info, *info32 = ptr;
-#endif
         /* assume at most 32 types, with an average 16-char name */
         ULONG ret_size, size = 32 * (sizeof(OBJECT_TYPE_INFORMATION) + 16 * sizeof(WCHAR));
 
@@ -1311,7 +1307,7 @@ NTSTATUS WINAPI wow64_NtReleaseSemaphore( UINT *args )
 {
     HANDLE handle = get_handle( &args );
     ULONG count = get_ulong( &args );
-    ULONG *previous = get_ptr( &args );
+    LONG *previous = get_ptr( &args );
 
     return NtReleaseSemaphore( handle, count, previous );
 }

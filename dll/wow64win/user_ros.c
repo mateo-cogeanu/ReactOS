@@ -570,7 +570,7 @@ wow64_NtUserBuildHwndList(UINT *pArgs)
 
 BOOL 
 WINAPI
-wow64_NtUserSetWindowFNID(ULONG* pArgs)
+wow64_NtUserSetWindowFNID(UINT* pArgs)
 {
     HANDLE hWnd = get_handle(&pArgs);
     WORD fnId = get_ulong(&pArgs);
@@ -580,7 +580,7 @@ wow64_NtUserSetWindowFNID(ULONG* pArgs)
 
 BOOL
 WINAPI
-wow64_NtUserDefSetText(ULONG* pArgs)
+wow64_NtUserDefSetText(UINT* pArgs)
 {
     HWND hWnd = get_handle(&pArgs);
     PLARGE_STRING32 pWindowText32 = get_ptr(&pArgs);
@@ -592,7 +592,7 @@ wow64_NtUserDefSetText(ULONG* pArgs)
 
 HBRUSH
 WINAPI
-wow64_NtUserGetControlColor(ULONG *pArgs)
+wow64_NtUserGetControlColor(UINT *pArgs)
 {
     HWND hwndParent = get_handle(&pArgs);
     HWND hwnd = get_handle(&pArgs);
@@ -604,7 +604,7 @@ wow64_NtUserGetControlColor(ULONG *pArgs)
 
 HBRUSH
 WINAPI
-wow64_NtUserGetControlBrush(ULONG *pArgs)
+wow64_NtUserGetControlBrush(UINT *pArgs)
 {
     HWND hwnd = get_handle(&pArgs);
     HDC hdc = get_handle(&pArgs);
@@ -615,7 +615,7 @@ wow64_NtUserGetControlBrush(ULONG *pArgs)
 
 NTSTATUS
 WINAPI
-wow64_NtUserAlterWindowStyle(ULONG* pArgs)
+wow64_NtUserAlterWindowStyle(UINT* pArgs)
 {
     HWND hWnd = get_handle(&pArgs);
     DWORD Index = get_ulong(&pArgs);
@@ -817,7 +817,7 @@ wow64_NtUserCreateLocalMemHandle(UINT* pArgs)
     DWORD cbData32 = get_ulong(&pArgs);
     PDWORD32 pcbData = get_ptr(&pArgs);
 
-    return NtUserCreateLocalMemHandle(hMem, pData32, cbData32, pcbData);
+    return NtUserCreateLocalMemHandle(hMem, pData32, cbData32, (PDWORD)pcbData);
 }
 
 HANDLE
