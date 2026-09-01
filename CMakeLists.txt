@@ -76,6 +76,7 @@ add_definitions(
 )
 
 if (ARCH STREQUAL "amd64")
+    set(BUILD_WOW64_ENABLED TRUE)
     add_definitions(-DBUILD_WOW64_ENABLED)
 endif()
 
