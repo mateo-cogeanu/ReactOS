@@ -28,7 +28,7 @@ For exact attribution and the full upstream history, use `git log`, consult
   at physical address `0xB8000`, while pure UEFI retained a 640×480×32 GOP
   linear framebuffer at `0x80000000`. This mismatch caused the colored top
   scanline, clipped text, and white rectangles.
-- **2026-09-02 13:06:11 CEST** — Completed the experimental framebuffer console
+- **2026-09-02 13:06:11 CEST** — `525d7793944` — Completed the experimental framebuffer console
   in `drivers/setup/blue/blue.c`. It discovers the boot display, maps validated
   32-bpp framebuffer bounds, maintains the existing 80×50 character-cell
   contract in nonpaged memory, rasterizes the active 8×8 font with the firmware
