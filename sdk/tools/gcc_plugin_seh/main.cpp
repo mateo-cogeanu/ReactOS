@@ -6,18 +6,19 @@
  *              Copyright 2024 Timo Kreuzer <timo.kreuzer@reactos.org>
  */
 
+#include <iostream>
+#include <sstream>
+#include <unordered_map>
+#include <vector>
+#include <cstdio>
+
+/* GCC's safe-ctype.h poisons standard ctype names used by libc++ headers. */
 #include <gcc-plugin.h>
 #include <plugin-version.h>
 #include <function.h>
 #include <tree.h>
 #include <c-family/c-pragma.h>
 #include <c-family/c-common.h>
-
-#include <iostream>
-#include <sstream>
-#include <unordered_map>
-#include <vector>
-#include <cstdio>
 
 #if 0 // To enable tracing
 #define trace(...) fprintf(stderr, __VA_ARGS__)

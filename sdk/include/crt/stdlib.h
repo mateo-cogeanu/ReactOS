@@ -256,6 +256,12 @@ extern "C" {
 #endif
   int __cdecl atexit(void (__cdecl *)(void));
 
+/* Required by current MinGW libstdc++ <cstdlib> in C++11 and later. */
+#if defined(__cplusplus) && (__cplusplus >= 201103L)
+  int __cdecl at_quick_exit(void (__cdecl *)(void));
+  __declspec(noreturn) void __cdecl quick_exit(_In_ int _Code);
+#endif
+
 #ifndef _CRT_ATOF_DEFINED
 #define _CRT_ATOF_DEFINED
 

@@ -3,6 +3,11 @@ add_host_module(gcc_plugin_seh main.cpp)
 target_include_directories(gcc_plugin_seh PRIVATE ${GCC_PLUGIN_DIR}/include)
 set_target_properties(gcc_plugin_seh PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+if(APPLE)
+    # GCC provides the plugin API symbols when it loads this module.
+    target_link_options(gcc_plugin_seh PRIVATE "LINKER:-undefined,dynamic_lookup")
+endif()
+
 if (CMAKE_HOST_SYSTEM MATCHES "Windows")
     # On windows, GCC plugins need to be linked to the main executable
     # This means that there must be a plugin for both GCC & G++

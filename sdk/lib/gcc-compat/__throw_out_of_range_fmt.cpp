@@ -5,6 +5,7 @@
  * COPYRIGHT:   Copyright 2024 Timo Kreuzer <timo.kreuzer@reactos.org>
  */
 
+#include <stdlib.h>
 #include <stdexcept>
 #include <cstdarg>
 #include <cstring>

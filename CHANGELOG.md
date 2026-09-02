@@ -21,14 +21,69 @@ For exact attribution and the full upstream history, use `git log`, consult
 
 ## Unreleased — UEFI Setup framebuffer console
 
-- 2026-09-01, after 17:25 CEST — Diagnosed corrupted UEFI text Setup output.
-  `blue.sys` writes 80×50 character/attribute cells to legacy VGA memory at
-  physical address `0xB8000`, while pure UEFI retains a 640×480×32 GOP linear
-  framebuffer at `0x80000000`. This mismatch explains the colored top scanline,
-  clipped text, and white rectangles.
-- A framebuffer-backed `blue.sys` implementation was started locally, but it
-  remains uncommitted and unvalidated. It is intentionally excluded from the
-  completed feature list and from the documentation commit.
+### Diagnosis and implementation
+
+- **2026-09-01, after 17:25 CEST** — Diagnosed the corrupted UEFI text Setup
+  output. `blue.sys` wrote 80×50 character/attribute cells to legacy VGA memory
+  at physical address `0xB8000`, while pure UEFI retained a 640×480×32 GOP
+  linear framebuffer at `0x80000000`. This mismatch caused the colored top
+  scanline, clipped text, and white rectangles.
+- **2026-09-02 13:06:11 CEST** — Completed the experimental framebuffer console
+  in `drivers/setup/blue/blue.c`. It discovers the boot display, maps validated
+  32-bpp framebuffer bounds, maintains the existing 80×50 character-cell
+  contract in nonpaged memory, rasterizes the active 8×8 font with the firmware
+  pixel masks, centers the text area, redraws cursor and IOCTL updates, clears
+  stale GOP pixels, and retains the legacy VGA path as a fallback.
+- Changed `Blue` to boot-start in `boot/bootdata/hivesys.inf`. This is required
+  because the loader ARC framebuffer record is guaranteed only during boot
+  driver initialization. `blue.sys` now caches the mapping at `DriverEntry` and
+  preserves it until text Setup acquires the console.
+- Added overflow, framebuffer-bound, pitch, resolution, color-mask, partial
+  allocation, cleanup, and remapping checks. The current renderer deliberately
+  accepts only 32-bpp GOP modes at least 640×400; unsupported modes continue to
+  use the legacy path.
+
+### Local macOS / GCC 16 build enablement
+
+- Built on Apple Silicon macOS with Homebrew MinGW-w64 GCC 16.2.0, CMake,
+  Ninja, and Bison 3.8.2. Compatibility changes include safe C++ CRT declaration
+  inclusion, current libstdc++ CRT exports/aliases, Apple-host fixes for
+  `mkshelllink` and the GCC SEH plugin, and non-fatal handling of new GCC 16
+  warnings in the subordinate i386 SysWOW64 build.
+- `dll/win32/lz32/CMakeLists.txt` now compiles its generated stub translation
+  unit. This makes the forwarding-only module receive the PE DLL characteristic
+  with current CMake/MinGW; without it SMSS terminates with
+  `STATUS_INVALID_IMPORT_OF_NON_DLL` while processing KnownDLLs.
+- Removed a few unused local variables exposed by GCC 16 in DXDIAG, Telnet, and
+  SHELL32. These are mechanical warning cleanups with no behavior change.
+
+### Build and VM verification
+
+- Full native AMD64 plus subordinate i386 SysWOW64 build and BootCD packaging
+  completed with:
+
+  ```sh
+  PATH=/opt/homebrew/opt/bison/bin:$PATH \
+  CPLUS_INCLUDE_PATH=/opt/homebrew/include \
+  LIBRARY_PATH=/opt/homebrew/lib \
+  ninja -j4 bootcd
+  ```
+
+- `blue.sys` is PE32+ native x86-64. SHA-256:
+  `728df609f06bd844b2ca8016b8fc15ee347e549f88f95dac63e3ae47bb11364c`.
+- The 1,231,028,224-byte `bootcd.iso` SHA-256 is
+  `e4ed5afbf1cf132d22d8b664c9183cc8673b778b525469f572b2c88e5fedef92`.
+- Booted with QEMU 11.0.3 using `q35`, TCG x86-64, OVMF UEFI pflash, an
+  ICH9 AHCI SATA CD-ROM, and an 8-GiB disposable AHCI SATA disk. COM1 recorded
+  `Using 640x480 UEFI framebuffer console, pitch 2560` before
+  `BOOT DRIVERS LOADED`.
+- **Visually verified** the Setup language-selection, welcome, and version-status
+  pages. The full blue area, 80×50 text, borders, selection highlight, status
+  line, cursor/update behavior, and page-to-page redraws render without the old
+  grey screen, stray scanline, clipping, or white rectangles.
+- This verifies the tested QEMU GOP mode only. Other GOP layouts and physical
+  firmware remain unverified, and the wider AMD64/UEFI/AHCI/WoW64 stack remains
+  experimental.
 
 ## 2026-09-01 — Integrated AMD64 + WoW64 build
 

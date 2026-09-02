@@ -184,7 +184,6 @@ EnumerateServiceProviders(HKEY hKey, HWND hDlgCtrl, DIRECTPLAY_GUID * PreDefProv
     WCHAR szGUID[40];
     WCHAR szTemp[63];
     WCHAR szResult[MAX_PATH+20] = {0};
-    DWORD RegProviders = 0;
     DWORD ProviderIndex;
     DWORD dwName;
     LVITEMW Item;
@@ -280,7 +279,6 @@ EnumerateServiceProviders(HKEY hKey, HWND hDlgCtrl, DIRECTPLAY_GUID * PreDefProv
 
              if (ProviderIndex != UINT_MAX)
                 {
-                    RegProviders |= (1 << ProviderIndex);
                     szResult[0] = L'\0';
                     LoadStringW(hInst, IDS_REG_SUCCESS, szResult, sizeof(szResult) / sizeof(WCHAR));
                     Item.iSubItem = 1;
@@ -293,10 +291,7 @@ EnumerateServiceProviders(HKEY hKey, HWND hDlgCtrl, DIRECTPLAY_GUID * PreDefProv
         dwIndex++;
     }while(result != ERROR_NO_MORE_ITEMS);
 
-    /* check if all providers have been registered */
-//    if (RegProviders == 15)
-        return TRUE;
-    return FALSE;
+    return TRUE;
 }
 
 

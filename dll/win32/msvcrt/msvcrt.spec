@@ -331,6 +331,7 @@
 # stub -version=0x600+ _aligned_realloc_dbg(ptr long long str long)
 @ cdecl _amsg_exit(long)
 @ cdecl _assert(str str long)
+@ cdecl __msvcrt_assert(str str long) _assert
 @ cdecl _atodbl(ptr str)
 @ cdecl -version=0x600+ _atodbl_l(ptr str ptr)
 @ cdecl -version=0x600+ _atof_l(str ptr)
@@ -475,10 +476,12 @@
 # stub -version=0x600+ _freea_s
 @ varargs -version=0x600+ _fscanf_l(ptr str ptr)
 @ varargs -version=0x600+ _fscanf_s_l(ptr str ptr)
-@ cdecl -version=0x600+ _fseeki64(ptr int64 long)
+@ cdecl _fseeki64(ptr int64 long)
+@ cdecl fseeko64(ptr int64 long) _fseeki64
 @ cdecl _fsopen(str str long)
 @ cdecl _fstat(long ptr)
 @ cdecl _fstat64(long ptr)
+@ cdecl fstat64(long ptr) _fstat64
 @ cdecl _fstati64(long ptr)
 @ cdecl -arch=win32 _ftime(ptr) _ftime32
 @ cdecl -arch=win64 _ftime(ptr) _ftime64
@@ -490,6 +493,8 @@
 @ cdecl -version=0x600+ -arch=i386 -ret64 _ftol2() _ftol
 @ cdecl -version=0x600+ -arch=i386 -ret64 _ftol2_sse()
 # stub -version=0x600+ _ftol2_sse_excpt
+@ cdecl -ret64 _ftelli64(ptr)
+@ cdecl -ret64 ftello64(ptr) _ftelli64
 @ cdecl _fullpath(ptr str long)
 # stub -version=0x600+ _fullpath_dbg(ptr str long long str long)
 @ cdecl -arch=win32 _futime(long ptr) _futime32
@@ -681,6 +686,7 @@
 # stub -version=0x600+ _lsearch_s(ptr ptr ptr long ptr ptr)
 @ cdecl _lseek(long long long)
 @ cdecl -ret64 _lseeki64(long int64 long)
+@ cdecl -ret64 lseek64(long int64 long) _lseeki64
 @ cdecl _ltoa(long ptr long)
 @ cdecl -version=0x600+ _ltoa_s(long ptr long long)
 @ cdecl _ltow(long ptr long)
@@ -1375,9 +1381,9 @@
 @ cdecl malloc(long)
 @ cdecl mblen(ptr long)
 @ cdecl -version=0x600+ mbrlen(ptr long ptr)
-@ cdecl -version=0x600+ mbrtowc(ptr str long ptr)
+@ cdecl mbrtowc(ptr str long ptr)
 # stub -version=0x600+ mbsdup_dbg(wstr long ptr long)
-@ cdecl -version=0x600+ mbsrtowcs(ptr ptr long ptr)
+@ cdecl mbsrtowcs(ptr ptr long ptr)
 @ cdecl -version=0x600+ mbsrtowcs_s(ptr ptr long ptr long ptr)
 @ cdecl mbstowcs(ptr str long)
 @ cdecl -version=0x600+ mbstowcs_s(ptr ptr long str long) _mbstowcs_s
@@ -1447,7 +1453,7 @@
 @ cdecl strncmp(str str long)
 @ cdecl strncpy(ptr str long)
 @ cdecl -version=0x600+ strncpy_s(ptr long str long)
-@ cdecl -version=0x600+ strnlen(str long)
+@ cdecl strnlen(str long)
 @ cdecl strpbrk(str str)
 @ cdecl strrchr(str long)
 @ cdecl strspn(str str)
@@ -1496,7 +1502,7 @@
 @ cdecl -version=0x600+ vswprintf_s(ptr long wstr ptr)
 @ cdecl vwprintf(wstr ptr)
 @ cdecl -version=0x600+ vwprintf_s(wstr ptr)
-@ cdecl -version=0x600+ wcrtomb(ptr long ptr)
+@ cdecl wcrtomb(ptr long ptr)
 @ cdecl -version=0x600+ wcrtomb_s(ptr ptr long long ptr)
 @ cdecl wcscat(wstr wstr)
 @ cdecl -version=0x600+ wcscat_s(wstr long wstr)
@@ -1513,7 +1519,8 @@
 @ cdecl wcsncmp(wstr wstr long)
 @ cdecl wcsncpy(ptr wstr long)
 @ cdecl -version=0x600+ wcsncpy_s(ptr long wstr long)
-@ cdecl -version=0x600+ wcsnlen(wstr long)
+@ cdecl wcsnlen(wstr long)
+@ cdecl wctype(str)
 @ cdecl wcspbrk(wstr wstr)
 @ cdecl wcsrchr(wstr long)
 @ cdecl -version=0x600+ wcsrtombs(ptr ptr long ptr)

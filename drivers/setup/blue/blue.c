@@ -16,6 +16,9 @@
 #define NDEBUG
 #include <debug.h>
 
+/* Reuse the boot display discovery used by the linear framebuffer bootvid. */
+#include <drivers/bootvid/framebuf.c>
+
 /* NOTES ******************************************************************/
 /*
  *  [[character][attribute]][[character][attribute]]....
@@ -27,6 +30,21 @@ typedef struct _DEVICE_EXTENSION
 {
     PUCHAR  VideoMemory;    /* Pointer to video memory */
     SIZE_T  VideoMemorySize;
+    BOOLEAN VideoMemoryAllocated;
+    BOOLEAN FrameBufferMode;
+    PULONG  FrameBuffer;
+    PVOID   FrameBufferMapping;
+    SIZE_T  FrameBufferMappingSize;
+    ULONG   FrameBufferPitch;
+    ULONG   FrameBufferWidth;
+    ULONG   FrameBufferHeight;
+    ULONG   FrameBufferPanX;
+    ULONG   FrameBufferPanY;
+    ULONG   FrameBufferRedMask;
+    ULONG   FrameBufferGreenMask;
+    ULONG   FrameBufferBlueMask;
+    ULONG   FrameBufferReservedMask;
+    ULONG   FrameBufferColorMask;
     BOOLEAN Enabled;
     PUCHAR  ScreenBuffer;   /* Pointer to screenbuffer */
     SIZE_T  ScreenBufferSize;
@@ -84,6 +102,18 @@ static const UCHAR DefaultPalette[] =
     0xFF, 0, 0xFF,
     0xFF, 0xFF, 0,
     0xFF, 0xFF, 0xFF
+};
+
+static const UCHAR FrameBufferPalette[16][3] =
+{
+    {0x00, 0x00, 0x00}, {0x00, 0x00, 0xC0},
+    {0x00, 0xC0, 0x00}, {0x00, 0xC0, 0xC0},
+    {0xC0, 0x00, 0x00}, {0xC0, 0x00, 0xC0},
+    {0xC0, 0xC0, 0x00}, {0xC0, 0xC0, 0xC0},
+    {0x80, 0x80, 0x80}, {0x00, 0x00, 0xFF},
+    {0x00, 0xFF, 0x00}, {0x00, 0xFF, 0xFF},
+    {0xFF, 0x00, 0x00}, {0xFF, 0x00, 0xFF},
+    {0xFF, 0xFF, 0x00}, {0xFF, 0xFF, 0xFF}
 };
 
 /* INBV MANAGEMENT FUNCTIONS **************************************************/
@@ -357,6 +387,238 @@ ScrSetRegisters(const VGA_REGISTERS *Registers)
     WRITE_PORT_UCHAR(PELMASK, 0xff);
 }
 
+static ULONG
+ScrPackColorComponent(
+    _In_ UCHAR Component,
+    _In_ ULONG Mask)
+{
+    ULONG Shift = 0;
+    ULONG ValueMask;
+
+    if (!Mask)
+        return 0;
+
+    while (!(Mask & 1))
+    {
+        Mask >>= 1;
+        ++Shift;
+    }
+
+    ValueMask = Mask;
+    return ((((ULONG)Component * ValueMask) + 127) / 255) << Shift;
+}
+
+static ULONG
+ScrFramebufferColor(
+    _In_ PDEVICE_EXTENSION DeviceExtension,
+    _In_ UCHAR ColorIndex)
+{
+    const UCHAR* Color = FrameBufferPalette[ColorIndex & 0x0F];
+
+    return ScrPackColorComponent(Color[0], DeviceExtension->FrameBufferRedMask) |
+           ScrPackColorComponent(Color[1], DeviceExtension->FrameBufferGreenMask) |
+           ScrPackColorComponent(Color[2], DeviceExtension->FrameBufferBlueMask) |
+           DeviceExtension->FrameBufferReservedMask;
+}
+
+static VOID
+ScrClearFramebuffer(
+    _In_ PDEVICE_EXTENSION DeviceExtension)
+{
+    ULONG Row, Column;
+    ULONG Black;
+
+    if (!DeviceExtension->FrameBuffer)
+        return;
+
+    Black = ScrFramebufferColor(DeviceExtension, 0);
+    for (Row = 0; Row < DeviceExtension->FrameBufferHeight; ++Row)
+    {
+        PULONG Pixel = (PULONG)((PUCHAR)DeviceExtension->FrameBuffer +
+                               Row * DeviceExtension->FrameBufferPitch);
+
+        for (Column = 0; Column < DeviceExtension->FrameBufferWidth; ++Column)
+            Pixel[Column] = Black;
+    }
+}
+
+static VOID
+ScrRenderFramebuffer(
+    _In_ PDEVICE_EXTENSION DeviceExtension)
+{
+    ULONG Row, Column, GlyphRow, GlyphColumn;
+
+    if (!DeviceExtension->FrameBufferMode ||
+        !DeviceExtension->FrameBuffer ||
+        !DeviceExtension->VideoMemory)
+    {
+        return;
+    }
+
+    for (Row = 0; Row < DeviceExtension->Rows; ++Row)
+    {
+        for (Column = 0; Column < DeviceExtension->Columns; ++Column)
+        {
+            ULONG Cell = (Row * DeviceExtension->Columns + Column) * 2;
+            UCHAR Character = DeviceExtension->VideoMemory[Cell];
+            UCHAR Attribute = DeviceExtension->VideoMemory[Cell + 1];
+            ULONG Foreground = ScrFramebufferColor(DeviceExtension, Attribute);
+            ULONG Background = ScrFramebufferColor(DeviceExtension, Attribute >> 4);
+            PUCHAR Font = DeviceExtension->FontBitfield;
+
+            for (GlyphRow = 0; GlyphRow < 8; ++GlyphRow)
+            {
+                UCHAR Bits = Font ? Font[Character * 8 + GlyphRow] : 0;
+                PULONG Pixel = (PULONG)((PUCHAR)DeviceExtension->FrameBuffer +
+                    (DeviceExtension->FrameBufferPanY + Row * 8 + GlyphRow) *
+                        DeviceExtension->FrameBufferPitch +
+                    (DeviceExtension->FrameBufferPanX + Column * 8) * sizeof(ULONG));
+
+                for (GlyphColumn = 0; GlyphColumn < 8; ++GlyphColumn)
+                {
+                    Pixel[GlyphColumn] = (Bits & (0x80 >> GlyphColumn)) ?
+                                         Foreground : Background;
+                }
+            }
+        }
+    }
+
+    if (DeviceExtension->CursorVisible &&
+        DeviceExtension->CursorX < DeviceExtension->Columns &&
+        DeviceExtension->CursorY < DeviceExtension->Rows)
+    {
+        PULONG Pixel = (PULONG)((PUCHAR)DeviceExtension->FrameBuffer +
+            (DeviceExtension->FrameBufferPanY + DeviceExtension->CursorY * 8 + 7) *
+                DeviceExtension->FrameBufferPitch +
+            (DeviceExtension->FrameBufferPanX + DeviceExtension->CursorX * 8) * sizeof(ULONG));
+
+        for (GlyphColumn = 0; GlyphColumn < 8; ++GlyphColumn)
+            Pixel[GlyphColumn] ^= DeviceExtension->FrameBufferColorMask;
+    }
+}
+
+static VOID
+ScrReleaseFramebuffer(
+    _In_ PDEVICE_EXTENSION DeviceExtension)
+{
+    if (DeviceExtension->FrameBufferMapping)
+    {
+        MmUnmapIoSpace(DeviceExtension->FrameBufferMapping,
+                       DeviceExtension->FrameBufferMappingSize);
+    }
+
+    DeviceExtension->FrameBufferMode = FALSE;
+    DeviceExtension->FrameBufferMapping = NULL;
+    DeviceExtension->FrameBufferMappingSize = 0;
+    DeviceExtension->FrameBuffer = NULL;
+    DeviceExtension->FrameBufferPitch = 0;
+    DeviceExtension->FrameBufferWidth = 0;
+    DeviceExtension->FrameBufferHeight = 0;
+}
+
+static BOOLEAN
+ScrInitializeFramebuffer(
+    _In_ PDEVICE_EXTENSION DeviceExtension)
+{
+    PHYSICAL_ADDRESS VramAddress, FrameBufferAddress, MappingAddress;
+    CM_FRAMEBUF_DEVICE_DATA VideoData = {0};
+    INTERFACE_TYPE Interface;
+    ULONG BusNumber, VramSize, AddressSpace = 0;
+    PHYSICAL_ADDRESS TranslatedAddress;
+    SIZE_T MappingSize, FrameBufferSize;
+    ULONG_PTR ByteOffset;
+
+    if (!NT_SUCCESS(FindBootDisplay(&VramAddress,
+                                    &VramSize,
+                                    &VideoData,
+                                    NULL,
+                                    &Interface,
+                                    &BusNumber)) ||
+        VideoData.BitsPerPixel != 32 ||
+        VideoData.ScreenWidth < 80 * 8 ||
+        VideoData.ScreenHeight < 50 * 8 ||
+        VideoData.PixelsPerScanLine < VideoData.ScreenWidth ||
+        VideoData.FrameBufferOffset > VramSize)
+    {
+        return FALSE;
+    }
+
+    FrameBufferSize = (SIZE_T)VideoData.ScreenHeight *
+                      VideoData.PixelsPerScanLine * sizeof(ULONG);
+    if ((FrameBufferSize / sizeof(ULONG) / VideoData.ScreenHeight !=
+            VideoData.PixelsPerScanLine) ||
+        FrameBufferSize > VramSize - VideoData.FrameBufferOffset)
+    {
+        DPRINT1("Invalid boot framebuffer bounds\n");
+        return FALSE;
+    }
+
+    FrameBufferAddress.QuadPart = VramAddress.QuadPart + VideoData.FrameBufferOffset;
+    if (!BootTranslateBusAddress(Interface,
+                                 BusNumber,
+                                 FrameBufferAddress,
+                                 &AddressSpace,
+                                 &TranslatedAddress) ||
+        AddressSpace != 0)
+    {
+        return FALSE;
+    }
+
+    MappingAddress.QuadPart = ALIGN_DOWN_BY(TranslatedAddress.QuadPart, PAGE_SIZE);
+    ByteOffset = (ULONG_PTR)(TranslatedAddress.QuadPart - MappingAddress.QuadPart);
+    if (FrameBufferSize > MAXULONG_PTR - ByteOffset)
+        return FALSE;
+    MappingSize = ROUND_TO_PAGES(ByteOffset + FrameBufferSize);
+
+    DeviceExtension->FrameBufferMapping =
+        MmMapIoSpace(MappingAddress, MappingSize, MmFrameBufferCached);
+    if (!DeviceExtension->FrameBufferMapping)
+    {
+        DeviceExtension->FrameBufferMapping =
+            MmMapIoSpace(MappingAddress, MappingSize, MmNonCached);
+    }
+    if (!DeviceExtension->FrameBufferMapping)
+        return FALSE;
+
+    DeviceExtension->FrameBufferMappingSize = MappingSize;
+    DeviceExtension->FrameBuffer =
+        (PULONG)((PUCHAR)DeviceExtension->FrameBufferMapping + ByteOffset);
+    DeviceExtension->FrameBufferPitch =
+        VideoData.PixelsPerScanLine * sizeof(ULONG);
+    DeviceExtension->FrameBufferWidth = VideoData.ScreenWidth;
+    DeviceExtension->FrameBufferHeight = VideoData.ScreenHeight;
+    DeviceExtension->FrameBufferPanX = (VideoData.ScreenWidth - 80 * 8) / 2;
+    DeviceExtension->FrameBufferPanY = (VideoData.ScreenHeight - 50 * 8) / 2;
+    DeviceExtension->FrameBufferRedMask = VideoData.PixelMasks.RedMask;
+    DeviceExtension->FrameBufferGreenMask = VideoData.PixelMasks.GreenMask;
+    DeviceExtension->FrameBufferBlueMask = VideoData.PixelMasks.BlueMask;
+    DeviceExtension->FrameBufferReservedMask = VideoData.PixelMasks.ReservedMask;
+    DeviceExtension->FrameBufferColorMask = VideoData.PixelMasks.RedMask |
+                                            VideoData.PixelMasks.GreenMask |
+                                            VideoData.PixelMasks.BlueMask;
+    if (!DeviceExtension->FrameBufferColorMask)
+    {
+        DPRINT1("Invalid boot framebuffer pixel masks\n");
+        ScrReleaseFramebuffer(DeviceExtension);
+        return FALSE;
+    }
+    DeviceExtension->Columns = 80;
+    DeviceExtension->Rows = 50;
+    DeviceExtension->ScanLines = 8;
+    DeviceExtension->CursorX = 0;
+    DeviceExtension->CursorY = 0;
+    DeviceExtension->FrameBufferMode = TRUE;
+
+    /* Remove stale boot graphics and any legacy VGA writes from the GOP view. */
+    ScrClearFramebuffer(DeviceExtension);
+
+    DPRINT1("Using %lux%lu UEFI framebuffer console, pitch %lu\n",
+            VideoData.ScreenWidth,
+            VideoData.ScreenHeight,
+            DeviceExtension->FrameBufferPitch);
+    return TRUE;
+}
+
 static VOID
 FASTCALL
 ScrSetCursor(
@@ -364,7 +626,7 @@ ScrSetCursor(
 {
     ULONG Offset;
 
-    if (!DeviceExtension->VideoMemory)
+    if (!DeviceExtension->VideoMemory || DeviceExtension->FrameBufferMode)
         return;
 
     Offset = (DeviceExtension->CursorY * DeviceExtension->Columns) + DeviceExtension->CursorX;
@@ -385,7 +647,7 @@ ScrSetCursorShape(
     ULONG size, height;
     UCHAR data, value;
 
-    if (!DeviceExtension->VideoMemory)
+    if (!DeviceExtension->VideoMemory || DeviceExtension->FrameBufferMode)
         return;
 
     height = DeviceExtension->ScanLines;
@@ -414,6 +676,9 @@ ScrAcquireOwnership(
     UCHAR data, value;
     ULONG offset;
     ULONG Index;
+
+    if (DeviceExtension->FrameBufferMode)
+        return;
 
     _disable();
 
@@ -526,6 +791,14 @@ ScrResetScreen(
 
     if (Enable)
     {
+        if (FullReset)
+        {
+            if (!DeviceExtension->FrameBufferMode)
+                ScrInitializeFramebuffer(DeviceExtension);
+            else
+                ScrClearFramebuffer(DeviceExtension);
+        }
+
         ScrAcquireOwnership(DeviceExtension);
 
         if (FullReset)
@@ -538,10 +811,14 @@ ScrResetScreen(
             if (DeviceExtension->VideoMemory)
             {
                 ASSERT(DeviceExtension->VideoMemorySize != 0);
-                MmUnmapIoSpace(DeviceExtension->VideoMemory, DeviceExtension->VideoMemorySize);
+                if (DeviceExtension->VideoMemoryAllocated)
+                    ExFreePoolWithTag(DeviceExtension->VideoMemory, TAG_BLUE);
+                else
+                    MmUnmapIoSpace(DeviceExtension->VideoMemory, DeviceExtension->VideoMemorySize);
             }
             DeviceExtension->VideoMemory = NULL;
             DeviceExtension->VideoMemorySize = 0;
+            DeviceExtension->VideoMemoryAllocated = FALSE;
 
             /* Free any previously allocated backup screenbuffer */
             if (DeviceExtension->ScreenBuffer)
@@ -557,14 +834,39 @@ ScrResetScreen(
             if (DeviceExtension->VideoMemorySize == 0)
                 return FALSE; // STATUS_INVALID_VIEW_SIZE; STATUS_MAPPED_FILE_SIZE_ZERO;
 
-            /* Map the video memory */
-            BaseAddress.QuadPart = VIDMEM_BASE;
-            DeviceExtension->VideoMemory =
-                (PUCHAR)MmMapIoSpace(BaseAddress, DeviceExtension->VideoMemorySize, MmNonCached);
+            /* Map legacy VGA memory, or allocate character cells for GOP. */
+            if (DeviceExtension->FrameBufferMode)
+            {
+                DeviceExtension->VideoMemory =
+                    ExAllocatePoolWithTag(NonPagedPool,
+                                          DeviceExtension->VideoMemorySize,
+                                          TAG_BLUE);
+                DeviceExtension->VideoMemoryAllocated = TRUE;
+            }
+            else
+            {
+                BaseAddress.QuadPart = VIDMEM_BASE;
+                DeviceExtension->VideoMemory =
+                    (PUCHAR)MmMapIoSpace(BaseAddress,
+                                        DeviceExtension->VideoMemorySize,
+                                        MmNonCached);
+                DeviceExtension->VideoMemoryAllocated = FALSE;
+            }
             if (!DeviceExtension->VideoMemory)
             {
                 DeviceExtension->VideoMemorySize = 0;
+                DeviceExtension->VideoMemoryAllocated = FALSE;
+                ScrReleaseFramebuffer(DeviceExtension);
                 return FALSE; // STATUS_NONE_MAPPED; STATUS_NOT_MAPPED_VIEW; STATUS_CONFLICTING_ADDRESSES;
+            }
+
+            if (DeviceExtension->FrameBufferMode)
+            {
+                PUSHORT Cell = (PUSHORT)DeviceExtension->VideoMemory;
+                SIZE_T Count = DeviceExtension->Rows * DeviceExtension->Columns;
+                while (Count--)
+                    *Cell++ = (DeviceExtension->CharAttribute << 8) | ' ';
+                ScrRenderFramebuffer(DeviceExtension);
             }
 
             /* Initialize the backup screenbuffer in non-paged pool (must be accessible at high IRQL) */
@@ -602,6 +904,7 @@ ScrResetScreen(
             /* Restore the cursor state */
             ScrSetCursor(DeviceExtension);
             ScrSetCursorShape(DeviceExtension);
+            ScrRenderFramebuffer(DeviceExtension);
         }
         DeviceExtension->Enabled = TRUE;
     }
@@ -621,10 +924,14 @@ ScrResetScreen(
             if (DeviceExtension->VideoMemory)
             {
                 ASSERT(DeviceExtension->VideoMemorySize != 0);
-                MmUnmapIoSpace(DeviceExtension->VideoMemory, DeviceExtension->VideoMemorySize);
+                if (DeviceExtension->VideoMemoryAllocated)
+                    ExFreePoolWithTag(DeviceExtension->VideoMemory, TAG_BLUE);
+                else
+                    MmUnmapIoSpace(DeviceExtension->VideoMemory, DeviceExtension->VideoMemorySize);
             }
             DeviceExtension->VideoMemory = NULL;
             DeviceExtension->VideoMemorySize = 0;
+            DeviceExtension->VideoMemoryAllocated = FALSE;
 
             /* Free any previously allocated backup screenbuffer */
             if (DeviceExtension->ScreenBuffer)
@@ -634,6 +941,8 @@ ScrResetScreen(
             }
             DeviceExtension->ScreenBuffer = NULL;
             DeviceExtension->ScreenBufferSize = 0;
+
+            ScrReleaseFramebuffer(DeviceExtension);
 
             /* Store dummy values */
             DeviceExtension->Columns = 1;
@@ -833,6 +1142,7 @@ ScrWrite(
     DeviceExtension->CursorX = cursorx;
     DeviceExtension->CursorY = cursory;
     ScrSetCursor(DeviceExtension);
+    ScrRenderFramebuffer(DeviceExtension);
 
     Status = STATUS_SUCCESS;
 
@@ -1523,7 +1833,10 @@ ScrIoControl(
 
             /* Set the font if needed */
             if (DeviceExtension->Enabled && DeviceExtension->VideoMemory)
-                ScrSetFont(DeviceExtension->FontBitfield);
+            {
+                if (!DeviceExtension->FrameBufferMode)
+                    ScrSetFont(DeviceExtension->FontBitfield);
+            }
 
             Irp->IoStatus.Information = 0;
             Status = STATUS_SUCCESS;
@@ -1533,6 +1846,9 @@ ScrIoControl(
         default:
             Status = STATUS_NOT_IMPLEMENTED;
     }
+
+    if (NT_SUCCESS(Status))
+        ScrRenderFramebuffer(DeviceExtension);
 
     Irp->IoStatus.Status = Status;
     IoCompleteRequest(Irp, IO_VIDEO_INCREMENT);
@@ -1598,6 +1914,12 @@ DriverEntry(
     {
         /* By default disable the screen (but don't touch INBV: ResetDisplayParametersDeviceExtension is still NULL) */
         ScrResetScreen(DeviceObject->DeviceExtension, TRUE, FALSE);
+        /*
+         * Cache the boot framebuffer while the loader ARC tree still exists.
+         * Text setup enables the device after boot-driver initialization, when
+         * that firmware-provided configuration data is no longer guaranteed.
+         */
+        ScrInitializeFramebuffer(DeviceObject->DeviceExtension);
         /* Now set ResetDisplayParametersDeviceExtension to enable synchronizing with INBV */
         ResetDisplayParametersDeviceExtension = DeviceObject->DeviceExtension;
         DeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;

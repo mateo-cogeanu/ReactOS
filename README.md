@@ -62,6 +62,8 @@ is made over upstream ReactOS, Wine, or third-party code.
   interface design but are not extracted from Microsoft Windows.
 - A resource-only VM patching utility for testing icon changes without
   replacing executable code.
+- A framebuffer-backed 80×50 text Setup console for 32-bpp UEFI GOP modes,
+  retaining legacy VGA as a fallback.
 
 ## Current status
 
@@ -92,9 +94,10 @@ install `BOOTX64.EFI`.
 - AMD64 LiveCD boot currently terminates Winlogon after loading `kbdus.dll`.
   An A/B test reproduced the same failure with the earlier non-WoW64 AMD64
   image, so it is not presently attributed to the SysWOW64 integration.
-- Text-mode Setup's `blue.sys` still assumes legacy VGA text memory. Under
-  pure UEFI/GOP this causes corrupted installer rendering. A framebuffer-backed
-  console fix is in development but is deliberately not committed as complete.
+- Text-mode Setup's framebuffer-backed `blue.sys` is visually verified with
+  QEMU's 640×480×32 UEFI GOP mode. Other GOP pixel formats/resolutions and real
+  firmware remain experimental and unverified; unsupported modes fall back to
+  the legacy VGA path.
 - ReactOS AMD64, UEFI, AHCI and WoW64 support are all experimental. Hardware
   compatibility is neither complete nor guaranteed.
 

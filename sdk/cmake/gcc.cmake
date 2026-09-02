@@ -169,6 +169,7 @@ add_compile_options(-march=${OARCH} -mtune=${TUNE})
 
 # Warnings, errors
 if(NOT CMAKE_C_COMPILER_ID STREQUAL "Clang" AND
+   CMAKE_C_COMPILER_VERSION VERSION_LESS 16 AND
    NOT ARCH STREQUAL "amd64" AND
    NOT CMAKE_BUILD_TYPE STREQUAL "Release" AND
    NOT CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" AND
@@ -629,6 +630,12 @@ function(add_linker_script _target _linker_script_file)
 endfunction()
 
 # Manage our C++ options
+# GCC 16's libstdc++ imports the C++11 quick-exit declarations even when the
+# selected legacy MinGW target headers hide them.
+if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-include${REACTOS_SOURCE_DIR}/sdk/include/reactos/mingw-gcc-compat.h>")
+endif()
+
 # we disable standard includes if we don't use the STL
 add_compile_options("$<$<AND:$<COMPILE_LANGUAGE:CXX>,$<NOT:$<IN_LIST:cppstl,$<TARGET_PROPERTY:LINK_LIBRARIES>>>>:-nostdinc>")
 # we disable RTTI, unless said so
@@ -699,4 +706,3 @@ target_compile_definitions(libstdc++ INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:PAL_ST
 
 # Create our alias libraries
 add_library(cppstl ALIAS libstdc++)
-
