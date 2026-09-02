@@ -12,6 +12,8 @@ For exact attribution and the full upstream history, use `git log`, consult
 
 ## Unreleased — AMD64 Winlogon startup compatibility
 
+Primary implementation commit: `88b3786afaa`.
+
 - **2026-09-02 13:47:23 CEST** — Captured the live UTM display and COM1 debug
   stream after the apparent post-Setup freeze. The graphical stack reached the
   800×480×32 desktop and rendered the build watermark, proving that the GOP
