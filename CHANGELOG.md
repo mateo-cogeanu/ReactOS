@@ -10,6 +10,48 @@ For exact attribution and the full upstream history, use `git log`, consult
 [`CREDITS`](CREDITS), and visit the
 [official ReactOS repository](https://github.com/reactos/reactos).
 
+## Unreleased — AMD64 Winlogon startup compatibility
+
+- **2026-09-02 13:47:23 CEST** — Captured the live UTM display and COM1 debug
+  stream after the apparent post-Setup freeze. The graphical stack reached the
+  800×480×32 desktop and rendered the build watermark, proving that the GOP
+  framebuffer path was active. `Alt+Tab`, `Ctrl+Esc`, and
+  `Ctrl+Shift+Escape` produced no shell UI.
+- The firmware trace also proved that UTM restarted from `UEFI QEMU DVD-ROM`,
+  not the installed SATA disk. The resulting LiveCD session stopped while
+  loading `msgina.dll`: the loader reported `Failed to snap
+  msvcrt.dll!snprintf for msgina.dll`, followed by the matching Winlogon entry
+  point error. This replaces the earlier nonspecific Winlogon blocker with a
+  concrete import failure.
+- Added an unconditional `snprintf` compatibility export in
+  `dll/win32/msvcrt/msvcrt.spec`, forwarding to ReactOS's existing
+  `_snprintf` implementation. Current Homebrew MinGW-w64 GCC 16 pulls
+  `libwinpthread` into C++-using system modules, and that support library
+  directly imports the C99 spelling even though this build's `0x502` export
+  profile previously omitted it.
+- Rebuilt the complete native AMD64 image and subordinate i386 SysWOW64
+  payload with `PATH=/opt/homebrew/opt/bison/bin:$PATH
+  CPLUS_INCLUDE_PATH=/opt/homebrew/include LIBRARY_PATH=/opt/homebrew/lib ninja
+  -j4 bootcd`. Packaging completed successfully. PE export inspection verified
+  that both `System32` and SysWOW64 builds of `msvcrt.dll` now export
+  `_snprintf` and `snprintf`; both corresponding `msgina.dll` builds retain a
+  resolvable `snprintf` import.
+- **Boot-verified** the corrected AMD64 LiveCD in a separate disposable QEMU
+  11.0.3 VM using TCG x86-64, Q35, OVMF UEFI, and SATA optical media. COM1
+  passed the former loader failure, initialized `framebuf.dll`, applied the
+  classic visual theme, and entered SysSetup Plug-and-Play device installation.
+  No `Failed to snap msvcrt.dll!snprintf` or matching Winlogon message occurred.
+- Booted the existing UTM SATA installation after ejecting its optical media.
+  UEFI selected `HARDDISK QM00003`, proving the boot-order diagnosis. That
+  previously installed image still contains the old CRT and reproduced the
+  `snprintf` Winlogon dialog. Its trace additionally reports a corrupt alternate
+  registry hive and a missing optional `lfbbvid.dll`; it must be reinstalled
+  from the corrected ISO rather than treated as a valid verification result.
+- Corrected BootCD: 1,231,028,224 bytes; SHA-256
+  `d4dda0498abecbb730a09f05d36724ae8a14b7327ea78270b054a7eceb805c8d`.
+  Reformatting/reinstallation of the user's existing VM disk remains pending
+  explicit confirmation because it will erase that virtual disk.
+
 ## Unreleased — Repository workflow
 
 - **2026-09-01 18:13:54 CEST** — Added a repository-wide `AGENTS.md` working

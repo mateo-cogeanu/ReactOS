@@ -1429,6 +1429,7 @@
 @ cdecl -arch=!i386 sinf(float)
 @ cdecl sinh(double)
 @ cdecl -arch=!i386 sinhf(float)
+@ varargs snprintf(ptr long str) _snprintf # Required by current MinGW-w64 runtime support libraries
 @ varargs sprintf(ptr str)
 @ varargs -version=0x600+ sprintf_s(ptr long str)
 @ cdecl sqrt(double)

@@ -91,9 +91,16 @@ install `BOOTX64.EFI`.
 ### Known blockers
 
 - Runtime execution of a 32-bit application through WoW64 is **not yet proven**.
-- AMD64 LiveCD boot currently terminates Winlogon after loading `kbdus.dll`.
-  An A/B test reproduced the same failure with the earlier non-WoW64 AMD64
-  image, so it is not presently attributed to the SysWOW64 integration.
+- The AMD64 LiveCD Winlogon failure was traced to a missing `snprintf` export
+  required by the current MinGW-w64 `libwinpthread`. The compatibility export
+  is built into both native AMD64 and SysWOW64 CRTs, and the corrected LiveCD
+  has booted past the former failure into SysSetup device installation.
+- After installation, remove the BootCD or place the SATA disk first in the
+  UEFI boot order. A captured UTM restart selected `UEFI QEMU DVD-ROM` and
+  returned to the LiveCD rather than starting the installed system.
+- An installation made from the preceding ISO still contains the failing CRT
+  and must be replaced or upgraded; changing the source or mounting the new ISO
+  cannot retroactively update files already copied to its virtual disk.
 - Text-mode Setup's framebuffer-backed `blue.sys` is visually verified with
   QEMU's 640×480×32 UEFI GOP mode. Other GOP pixel formats/resolutions and real
   firmware remain experimental and unverified; unsupported modes fall back to
