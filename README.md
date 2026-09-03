@@ -90,7 +90,13 @@ install `BOOTX64.EFI`.
 
 ### Known blockers
 
-- Runtime execution of a 32-bit application through WoW64 is **not yet proven**.
+- Runtime execution of 32-bit applications through WoW64 is currently
+  **reproducibly blocked during first-process initialization**. Both the
+  LMMS 1.2.2 Win32 installer and `SysWOW64\\cmd.exe` reach
+  `Loading WOW64.DLL` and then fail to open a window. The current
+  `Wow64LdrpInitialize` implementation contains an unconditional development
+  `__debugbreak()` before `Wow64InitProcess`; removing that breakpoint and
+  retesting the minimal 32-bit command prompt is the next runtime milestone.
 - The AMD64 LiveCD Winlogon failure was traced to a missing `snprintf` export
   required by the current MinGW-w64 `libwinpthread`. The compatibility export
   is built into both native AMD64 and SysWOW64 CRTs, and the corrected LiveCD

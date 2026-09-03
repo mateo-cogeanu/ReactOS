@@ -10,6 +10,34 @@ For exact attribution and the full upstream history, use `git log`, consult
 [`CREDITS`](CREDITS), and visit the
 [official ReactOS repository](https://github.com/reactos/reactos).
 
+## Unreleased — WoW64 runtime smoke-test diagnosis
+
+- **2026-09-03 18:08:43 CEST — Reproduced, diagnosed, not fixed.** On the
+  installed AMD64 UTM system, launched the downloaded LMMS 1.2.2 Win32
+  installer while recording COM1. The executable no longer produced the
+  immediate incompatible-architecture dialog, but no installer window opened.
+  COM1 recorded a nonfatal missing `Microsoft.Windows.Common-Controls` assembly
+  diagnostic, followed by `Loading WOW64.DLL` and the memory-manager message
+  `Close to our death...`.
+- Repeated the test with the branch's own minimal i386
+  `C:\\ReactOS\\SysWOW64\\cmd.exe`. It produced the same `Loading WOW64.DLL`
+  and `Close to our death...` sequence and no command-prompt window. This
+  isolates the blocker to common WoW64 initialization rather than LMMS, Qt,
+  audio, or a third-party application dependency.
+- Source inspection found an unconditional `__debugbreak()` in
+  `dll/wow64/wow64.c::Wow64LdrpInitialize`, immediately before
+  `Wow64InitProcess`. Disassembly of the exact built
+  `reactos-build-amd64/dll/wow64/wow64.dll` confirmed an `int3` instruction at
+  virtual address `0xFF0035BA` on the first-process initialization branch. The
+  subsequent `Close to our death...` message originates from the native user
+  stack guard/overflow path in `ntoskrnl/mm/ARM3/pagfault.c` and is treated as
+  a likely secondary effect of that deliberate breakpoint, not yet as an
+  independently proven memory-manager defect.
+- No source fix or rebuild was performed for this entry. Next: remove or gate
+  the development breakpoint, rebuild the native AMD64 `wow64.dll` and BootCD,
+  verify `SysWOW64\\cmd.exe` first, then retry the LMMS installer and record the
+  next missing syscall or thunk honestly if initialization advances.
+
 ## Unreleased — AMD64 Winlogon startup compatibility
 
 Primary implementation commit: `88b3786afaa`.
