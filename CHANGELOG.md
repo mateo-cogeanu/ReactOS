@@ -57,6 +57,8 @@ Primary implementation commit: `88b3786afaa`.
 
 ## Unreleased — Installer-first BootCD default
 
+Primary implementation commit: `c5919c308dd`.
+
 - **2026-09-02 14:03:30 CEST** — Changed
   `boot/bootdata/bootcd.ini` to select the COM1-enabled `Setup_Debug` entry by
   default instead of `LiveImg_Debug`. UTM repeatedly entered the Live
