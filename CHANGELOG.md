@@ -51,8 +51,43 @@ Primary implementation commit: `88b3786afaa`.
   from the corrected ISO rather than treated as a valid verification result.
 - Corrected BootCD: 1,231,028,224 bytes; SHA-256
   `d4dda0498abecbb730a09f05d36724ae8a14b7327ea78270b054a7eceb805c8d`.
-  Reformatting/reinstallation of the user's existing VM disk remains pending
-  explicit confirmation because it will erase that virtual disk.
+  This LiveCD-first image was subsequently superseded for installation testing
+  by the installer-first image documented below. The user later explicitly
+  authorized erasing and reinstalling the disposable UTM virtual disk.
+
+## Unreleased — Installer-first BootCD default
+
+- **2026-09-02 14:03:30 CEST** — Changed
+  `boot/bootdata/bootcd.ini` to select the COM1-enabled `Setup_Debug` entry by
+  default instead of `LiveImg_Debug`. UTM repeatedly entered the Live
+  environment when keyboard capture did not reach FreeLoader during its
+  ten-second menu timeout, making an installation attempt look like a failed
+  installed-system boot. The Live entries remain available in the menu.
+- Rebuilt `bootcd` successfully with the native AMD64 and subordinate i386
+  SysWOW64 payloads. Installer-first BootCD: 1,231,028,224 bytes; SHA-256
+  `02ce41cd8e3367fa7645c57c5976924fd32224aad06658c40552f40ae21428d1`;
+  published locally as
+  `reactos-amd64-uefi-ahci-wow64-modern-icons-framebuffer-winlogonfix-installerfirst-2026-09-02.iso`.
+- Boot-tested the installer-first image under UTM/QEMU with x86-64 emulation,
+  Q35, UEFI firmware, a SATA/AHCI virtual disk, a SATA/AHCI optical drive, and
+  COM1 at 115200 baud. FreeLoader automatically selected `Setup_Debug`; COM1
+  reported the AMD64 `\\AMD64\\` CD source and Setup rendered through the
+  800x480x32 UEFI GOP framebuffer console.
+- With the user's explicit authorization, deleted the previous FAT32 partition,
+  created and quick-formatted a new 32-GiB FAT partition, installed to
+  `C:\\ReactOS`, installed the hard-disk bootloader, and completed graphical
+  second-stage Setup. The ISO was ejected before the installed-system test.
+- **2026-09-03 17:27:14 CEST — Installation and first boot verified.** OVMF
+  selected `UEFI QEMU HARDDISK QM00003` on the SATA controller. COM1 identified
+  the AMD64 kernel and disk ARC path, initialized the AHCI/IDE storage stack,
+  reported `UEFI GOP Framebuffer` at 800x480x32, loaded `framebuf.dll`, passed
+  Winlogon, and reached a usable desktop with the custom modern shell icons and
+  taskbar. No `Failed to snap msvcrt.dll!snprintf` failure occurred.
+- The test still emits experimental-driver diagnostics: the optional
+  `lfbbvid.dll` loader warning, an alternate-hive validation warning, several
+  unsupported QEMU USB/communication-device installation failures, and other
+  incomplete AMD64/Plug-and-Play messages. These did not prevent installation
+  or the verified desktop boot and are not claimed as fixed by this change.
 
 ## Unreleased — Repository workflow
 

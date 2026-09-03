@@ -128,6 +128,12 @@ substitute an i386 boot image for the AMD64 output.
 
 The bootable result is normally `bootcd.iso` in the build directory. Verify the
 architectures of both `System32` and `SysWOW64` before distributing a result.
+This experimental fork's BootCD defaults to the COM1-enabled text installer;
+the graphical Live environment remains selectable from the FreeLoader menu.
+The installer-first image verified on 2026-09-03 is named
+`reactos-amd64-uefi-ahci-wow64-modern-icons-framebuffer-winlogonfix-installerfirst-2026-09-02.iso`
+and has SHA-256
+`02ce41cd8e3367fa7645c57c5976924fd32224aad06658c40552f40ae21428d1`.
 
 ## Suggested VM configuration
 
